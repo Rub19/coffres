@@ -8,3 +8,4 @@ site/_framework/
 site/_test/
 site/Coffres.exe
 site/version.json
+build-exe/

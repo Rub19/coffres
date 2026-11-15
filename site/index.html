@@ -239,7 +239,7 @@ body.obs #obsRoot{display:block}
 <script type="module">
 const $ = (id) => document.getElementById(id);
 const CONTENT_URL = 'https://raw.githubusercontent.com/LED-N/Fortnite-ChestCounter/main/content/content.json';
-const LIVE_MS = 20000, TIMEOUT_MS = 180000, ENGINE = 3, VERSION = '1.1.1';
+const ABANDONED_MS = 600000, TIMEOUT_MS = 180000, ENGINE = 3, VERSION = '1.1.2';
 const store = {
   get(k, d) { try { const v = localStorage.getItem('coffres.' + k); return v == null ? d : JSON.parse(v); } catch { return d; } },
   set(k, v) { try { localStorage.setItem('coffres.' + k, JSON.stringify(v)); } catch {} if (mode === 'exe') pushUser(); },
@@ -407,20 +407,39 @@ async function analyze(slot, file) {
     w.postMessage({ id, name: file.name, buf }, [buf]);
   });
 }
+const lastSizes = {};
+async function headerLive(file) {
+  try {
+    const v = new DataView(await file.slice(0, 4096).arrayBuffer());
+    let o = 0;
+    if (v.getUint32(o, true) !== 0x1CA2E27F) return null;
+    const version = v.getUint32(o + 4, true); o += 8;
+    if (version >= 7) { const n = v.getInt32(o, true); if (n < 0 || n > 64) return null; o += 4 + n * 20; }
+    o += 12;
+    const len = v.getInt32(o, true); o += 4 + (len < 0 ? -2 * len : len);
+    return v.getUint32(o, true) !== 0;
+  } catch { return null; }
+}
+
 async function scan() {
   if (mode !== 'web' || !dir || scanning) return;
   scanning = true;
   try {
-    const todo = []; let newest = 0;
+    const todo = []; let recording = false;
     for await (const [name, h] of dir.entries()) {
       if (h.kind !== 'file' || !name.endsWith('.replay')) continue;
       const f = await h.getFile();
-      newest = Math.max(newest, f.lastModified);
-      if (Date.now() - f.lastModified < LIVE_MS) continue;
+      const quiet = Date.now() - f.lastModified;
+      const flag = quiet < ABANDONED_MS ? await headerLive(f) : false;
+      if (flag === true && quiet < ABANDONED_MS) recording = true;
       const k = matches[name];
-      if (!k || k.v !== ENGINE || (k.error && k.size !== f.size)) todo.push(f);
+      if (k && k.v === ENGINE && !(k.error && k.size !== f.size)) continue;
+      const stable = lastSizes[name] === f.size;
+      lastSizes[name] = f.size;
+      const ready = flag === true ? quiet > ABANDONED_MS : flag === false ? quiet > 60000 || (stable && quiet >= 4000) : stable && quiet > 120000;
+      if (ready) todo.push(f);
     }
-    live = Date.now() - newest < LIVE_MS;
+    live = recording;
     todo.sort((a, b) => b.lastModified - a.lastModified);
     qTotal = todo.length; qDone = 0; update();
     if (todo.length && !workers.length) workers = Array.from({ length: POOL }, makeWorker);

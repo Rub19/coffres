@@ -11,7 +11,7 @@ namespace Coffres;
 
 public static class Program
 {
-    public const string Version = "1.1.1";
+    public const string Version = "1.1.2";
     const int Port = 47821;
     static readonly string Url = $"http://localhost:{Port}/";
     const string Site = "https://coffres.ethone.dev/";
@@ -21,7 +21,7 @@ public static class Program
     static readonly string LogPath = Path.Combine(DataDir, "errors.log");
     static readonly string DefaultFolder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "FortniteGame", "Saved", "Demos");
     const string RunKey = @"Software\Microsoft\Windows\CurrentVersion\Run";
-    static readonly TimeSpan LiveWindow = TimeSpan.FromSeconds(20), Timeout = TimeSpan.FromMinutes(3);
+    static readonly TimeSpan AbandonedLive = TimeSpan.FromMinutes(10), Timeout = TimeSpan.FromMinutes(3);
     static readonly DateTime Started = DateTime.UtcNow;
     static readonly HttpClient Http = new() { Timeout = TimeSpan.FromSeconds(30) };
 
@@ -42,6 +42,10 @@ public static class Program
 
     static readonly Dictionary<string, (string fr, string en, string es)> Notes = new()
     {
+        ["1.1.2"] = (
+            "La partie en cours est détectée comme dans le Chest Counter original (drapeau « en direct » du replay) : le point rouge ne clignote plus et une partie pas finie n'est plus lue trop tôt.",
+            "The match in progress is detected like the original Chest Counter (the replay's live flag): the red dot no longer flickers and an unfinished match is no longer read too early.",
+            "La partida en curso se detecta como en el Chest Counter original (indicador «en directo» de la repetición): el punto rojo ya no parpadea."),
         ["1.1.1"] = (
             "Coffres est maintenant open source (GPL v3) : code sur github.com/Rub19/coffres, licences dans le pied de page.",
             "Coffres is now open source (GPL v3): code at github.com/Rub19/coffres, licenses in the footer.",
@@ -209,20 +213,23 @@ public static class Program
         if (!Directory.Exists(folder)) { live = false; return; }
         var files = new DirectoryInfo(folder).GetFiles("*.replay");
         var now = DateTime.UtcNow;
-        var newest = files.OrderByDescending(f => f.LastWriteTimeUtc).FirstOrDefault();
-        live = newest != null && now - newest.LastWriteTimeUtc < LiveWindow;
-        if (live) ReadLive(newest); else { liveMatch = null; liveFile = null; }
+        var recording = files.Where(f => now - f.LastWriteTimeUtc < AbandonedLive && IsLive(f.FullName) == true)
+            .OrderByDescending(f => f.LastWriteTimeUtc).FirstOrDefault();
+        live = recording != null;
+        if (live) ReadLive(recording); else { liveMatch = null; liveFile = null; }
 
-        List<FileInfo> todo;
+        List<FileInfo> candidates;
         lock (Gate)
         {
             var matches = store["matches"]!.AsObject();
-            todo = files.Where(f => now - f.LastWriteTimeUtc >= LiveWindow).Where(f =>
+            candidates = files.Where(f =>
             {
                 var k = matches[f.Name];
                 return k == null || (int?)k["v"] != Summary.Engine || (k["error"] != null && (long?)k["size"] != f.Length);
             }).OrderByDescending(f => f.LastWriteTimeUtc).ToList();
         }
+        var todo = candidates.Where(f => Ready(f, now)).ToList();
+        foreach (var f in candidates) lastSize[f.FullName] = f.Length;
         total = todo.Count; done = 0;
         foreach (var f in todo)
         {
@@ -284,6 +291,43 @@ public static class Program
         };
         worker.Start();
         return worker.Join(timeout) ? result : JsonSerializer.Serialize(new { ok = false, error = "Timeout" });
+    }
+
+    static readonly Dictionary<string, long> lastSize = new();
+
+    static bool Ready(FileInfo f, DateTime now)
+    {
+        var quiet = now - f.LastWriteTimeUtc;
+        var flag = IsLive(f.FullName);
+        if (flag == true) return quiet > AbandonedLive;
+        if (flag == false && quiet > TimeSpan.FromMinutes(1)) return true;
+        var stable = lastSize.TryGetValue(f.FullName, out var size) && size == f.Length;
+        if (flag == null) return stable && quiet > TimeSpan.FromMinutes(2);
+        return stable && quiet >= TimeSpan.FromSeconds(4);
+    }
+
+    static bool? IsLive(string path)
+    {
+        try
+        {
+            using var fs = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+            using var br = new BinaryReader(fs);
+            if (br.ReadUInt32() != 0x1CA2E27F) return null;
+            if (br.ReadUInt32() >= 7)
+            {
+                var count = br.ReadInt32();
+                if (count < 0 || count > 64) return null;
+                fs.Seek(count * 20L, SeekOrigin.Current);
+            }
+            fs.Seek(12, SeekOrigin.Current);
+            var len = br.ReadInt32();
+            fs.Seek(len < 0 ? -2L * len : len, SeekOrigin.Current);
+            return br.ReadUInt32() != 0;
+        }
+        catch
+        {
+            return null;
+        }
     }
 
     static bool KeyMissing(string path)

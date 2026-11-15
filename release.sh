@@ -4,9 +4,12 @@ set -euo pipefail
 W="$(cd "$(dirname "$0")" && pwd)"
 export PATH="/c/Program Files/dotnet:$PATH"
 bash "$W/build.sh"
-dotnet publish "$W/app/Coffres.csproj" -c Release -o "$W/dist" | grep -E " error |-> .*dist" || true
-cp "$W/dist/Coffres.exe" "$W/site/Coffres.exe"
+/usr/bin/find "$W/build-exe" -mindepth 1 -delete 2>/dev/null || true
+dotnet publish "$W/app/Coffres.csproj" -c Release -o "$W/build-exe" -nologo -v:q
 VERSION=$(grep -oP '(?<=<Version>)[^<]+' "$W/app/Coffres.csproj")
+grep -aq "$VERSION" "$W/build-exe/Coffres.exe" || { echo "build-exe/Coffres.exe is not $VERSION"; exit 1; }
+cp "$W/build-exe/Coffres.exe" "$W/site/Coffres.exe"
+cp "$W/build-exe/Coffres.exe" "$W/dist/Coffres.exe" 2>/dev/null || echo "dist/Coffres.exe is running: it will update itself"
 python - "$W/site" "$VERSION" "${1:-}" "${2:-}" "${3:-}" <<'EOF'
 import hashlib, json, sys
 site, version, fr, en, es = sys.argv[1:6]

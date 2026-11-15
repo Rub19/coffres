@@ -7,7 +7,7 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <AssemblyName>Coffres</AssemblyName>
     <RootNamespace>Coffres</RootNamespace>
-    <Version>1.1.1</Version>
+    <Version>1.1.2</Version>
     <NoWarn>$(NoWarn);CS8632;CS0168;CS0219;CS1998;CA1416</NoWarn>
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
     <SelfContained>true</SelfContained>
