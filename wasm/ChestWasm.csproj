@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk.WebAssembly">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <OutputType>Exe</OutputType>
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <PredefinedCulturesOnly>false</PredefinedCulturesOnly>
+    <PublishTrimmed>true</PublishTrimmed>
+    <TrimMode>partial</TrimMode>
+    <JsonSerializerIsReflectionEnabledByDefault>true</JsonSerializerIsReflectionEnabledByDefault>
+    <SuppressTrimAnalysisWarnings>true</SuppressTrimAnalysisWarnings>
+    <NoWarn>$(NoWarn);CS8632;CS0168;CS0219;CS1998;CA1416</NoWarn>
+    <RootNamespace>ChestCounter</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\vendor\lib\FortniteReplayReader\FortniteReplayReader.csproj" />
+    <Compile Include="..\vendor\src\ChestCounter\ReplayAnalyzer.cs" />
+    <Compile Include="..\vendor\src\ChestCounter\Models.cs" />
+    <Compile Include="..\vendor\src\ChestCounter\Lang.cs" />
+    <Compile Include="..\vendor\src\ChestCounter\GameModes.cs" />
+    <Compile Include="..\vendor\src\ChestCounter\TreasureCatalog.cs" />
+    <Compile Include="..\vendor\src\ChestCounter\AppInfo.cs" />
+    <EmbeddedResource Include="..\vendor\content\content.json" LogicalName="content.json" />
+  </ItemGroup>
+</Project>

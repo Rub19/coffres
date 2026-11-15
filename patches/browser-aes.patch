@@ -1,0 +1,116 @@
+diff --git a/lib/FortniteReplayReader/AesEcb.cs b/lib/FortniteReplayReader/AesEcb.cs
+new file mode 100644
+index 0000000..3e2288a
+--- /dev/null
++++ b/lib/FortniteReplayReader/AesEcb.cs
+@@ -0,0 +1,95 @@
++namespace FortniteReplayReader;
++
++public static class AesEcb
++{
++    private static readonly byte[] S = new byte[256], Si = new byte[256];
++
++    static AesEcb()
++    {
++        byte p = 1, q = 1;
++        do
++        {
++            p = (byte)(p ^ (p << 1) ^ ((p & 0x80) != 0 ? 0x1B : 0));
++            q ^= (byte)(q << 1); q ^= (byte)(q << 2); q ^= (byte)(q << 4);
++            if ((q & 0x80) != 0) q ^= 0x09;
++            var x = (byte)(q ^ Rot(q, 1) ^ Rot(q, 2) ^ Rot(q, 3) ^ Rot(q, 4) ^ 0x63);
++            S[p] = x; Si[x] = p;
++        } while (p != 1);
++        S[0] = 0x63; Si[0x63] = 0;
++    }
++
++    private static byte Rot(byte v, int n) => (byte)((v << n) | (v >> (8 - n)));
++
++    private static byte Mul(byte a, byte b)
++    {
++        byte r = 0;
++        while (b != 0)
++        {
++            if ((b & 1) != 0) r ^= a;
++            a = (byte)((a << 1) ^ ((a & 0x80) != 0 ? 0x1B : 0));
++            b >>= 1;
++        }
++        return r;
++    }
++
++    private static byte[] Expand(byte[] key)
++    {
++        int nk = key.Length / 4, rounds = nk + 6, total = 16 * (rounds + 1);
++        var w = new byte[total];
++        Array.Copy(key, w, key.Length);
++        byte rcon = 1;
++        for (int i = key.Length; i < total; i += 4)
++        {
++            byte t0 = w[i - 4], t1 = w[i - 3], t2 = w[i - 2], t3 = w[i - 1];
++            if (i / 4 % nk == 0)
++            {
++                (t0, t1, t2, t3) = ((byte)(S[t1] ^ rcon), S[t2], S[t3], S[t0]);
++                rcon = (byte)((rcon << 1) ^ ((rcon & 0x80) != 0 ? 0x1B : 0));
++            }
++            else if (nk > 6 && i / 4 % nk == 4)
++            {
++                (t0, t1, t2, t3) = (S[t0], S[t1], S[t2], S[t3]);
++            }
++            w[i] = (byte)(w[i - key.Length] ^ t0); w[i + 1] = (byte)(w[i + 1 - key.Length] ^ t1);
++            w[i + 2] = (byte)(w[i + 2 - key.Length] ^ t2); w[i + 3] = (byte)(w[i + 3 - key.Length] ^ t3);
++        }
++        return w;
++    }
++
++    public static byte[] Decrypt(byte[] key, ReadOnlySpan<byte> data)
++    {
++        var w = Expand(key);
++        int rounds = key.Length / 4 + 6;
++        var m9 = new byte[256]; var m11 = new byte[256]; var m13 = new byte[256]; var m14 = new byte[256];
++        for (int i = 0; i < 256; i++) { m9[i] = Mul((byte)i, 9); m11[i] = Mul((byte)i, 11); m13[i] = Mul((byte)i, 13); m14[i] = Mul((byte)i, 14); }
++        var output = data.ToArray();
++        var s = new byte[16]; var t = new byte[16];
++        for (int off = 0; off + 16 <= output.Length; off += 16)
++        {
++            for (int i = 0; i < 16; i++) s[i] = (byte)(output[off + i] ^ w[rounds * 16 + i]);
++            for (int r = rounds - 1; r >= 0; r--)
++            {
++                for (int c = 0; c < 4; c++)
++                    for (int row = 0; row < 4; row++)
++                        t[c * 4 + row] = Si[s[((c - row + 4) % 4) * 4 + row]];
++                for (int i = 0; i < 16; i++) t[i] ^= w[r * 16 + i];
++                if (r == 0) { Array.Copy(t, s, 16); break; }
++                for (int c = 0; c < 4; c++)
++                {
++                    byte a0 = t[c * 4], a1 = t[c * 4 + 1], a2 = t[c * 4 + 2], a3 = t[c * 4 + 3];
++                    s[c * 4] = (byte)(m14[a0] ^ m11[a1] ^ m13[a2] ^ m9[a3]);
++                    s[c * 4 + 1] = (byte)(m9[a0] ^ m14[a1] ^ m11[a2] ^ m13[a3]);
++                    s[c * 4 + 2] = (byte)(m13[a0] ^ m9[a1] ^ m14[a2] ^ m11[a3]);
++                    s[c * 4 + 3] = (byte)(m11[a0] ^ m13[a1] ^ m9[a2] ^ m14[a3]);
++                }
++            }
++            Array.Copy(s, 0, output, off, 16);
++        }
++        if (output.Length == 0 || output.Length % 16 != 0) throw new System.Security.Cryptography.CryptographicException("length");
++        int pad = output[^1];
++        if (pad is < 1 or > 16) throw new System.Security.Cryptography.CryptographicException("padding");
++        for (int i = output.Length - pad; i < output.Length; i++)
++            if (output[i] != pad) throw new System.Security.Cryptography.CryptographicException("padding");
++        return output[..^pad];
++    }
++}
+diff --git a/lib/FortniteReplayReader/FortniteReplayReader.cs b/lib/FortniteReplayReader/FortniteReplayReader.cs
+index d65ecd9..4adc414 100644
+--- a/lib/FortniteReplayReader/FortniteReplayReader.cs
++++ b/lib/FortniteReplayReader/FortniteReplayReader.cs
+@@ -341,9 +341,7 @@ public class ReplayReader : Unreal.Core.ReplayReader<FortniteReplay>
+         var key = Replay.Info.EncryptionKey;
+         var encryptedBytes = archive.ReadMemory(size);
+ 
+-        using var aes = Aes.Create();
+-        aes.Key = key.ToArray();
+-        var decryptedArray = aes.DecryptEcb(encryptedBytes.Span, PaddingMode.PKCS7);
++        var decryptedArray = AesEcb.Decrypt(key.ToArray(), encryptedBytes.Span);
+ 
+         return new Unreal.Core.BinaryReader(decryptedArray.AsMemory())
+         {

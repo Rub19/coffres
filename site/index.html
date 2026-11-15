@@ -1,0 +1,977 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Coffres</title>
+<meta name="description" content="Compte automatiquement les coffres que tu ouvres dans Fortnite, à partir de tes replays. Tout reste sur ton PC.">
+<meta name="theme-color" content="#f5f5f7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='1' y='1' width='30' height='30' rx='7' fill='%23111113'/%3E%3Crect x='6' y='14' width='20' height='11' rx='2' fill='%23c8952c'/%3E%3Cpath d='M6 15a10 8 0 0 1 20 0z' fill='%23e8b04b'/%3E%3Crect x='14.5' y='15' width='3' height='4.5' rx='.8' fill='%23fff'/%3E%3C/svg%3E">
+<style>
+:root{
+  --bg:#f5f5f7;--card:#fff;--card2:#f5f5f7;--text:#1d1d1f;--sub:#6e6e73;--faint:#86868b;--line:rgba(0,0,0,.08);
+  --blue:#0071e3;--gold:#b7811f;--gold2:#e8b04b;--red:#ff3b30;--green:#28a745;--orange:#f56300;--track:rgba(0,0,0,.06);
+  --bar:rgba(245,245,247,.75);--shadow:0 1px 2px rgba(0,0,0,.04),0 8px 28px rgba(0,0,0,.05);--scrim:rgba(0,0,0,.32);
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme=light]){
+  --bg:#000;--card:#161618;--card2:#1f1f22;--text:#f5f5f7;--sub:#a1a1a6;--faint:#6e6e73;--line:rgba(255,255,255,.1);
+  --blue:#2997ff;--gold:#e8b04b;--gold2:#f3c86a;--green:#30d158;--orange:#ff9f0a;--track:rgba(255,255,255,.09);--bar:rgba(0,0,0,.68);--shadow:none;--scrim:rgba(0,0,0,.6);
+}}
+*{box-sizing:border-box;margin:0}
+html{-webkit-text-size-adjust:100%;scroll-padding-top:110px}
+body{background:var(--bg);color:var(--text);font:400 1rem/1.47 -apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI Variable Text","Segoe UI",system-ui,sans-serif;-webkit-font-smoothing:antialiased;min-height:100vh}
+.display,h1,h2,.big,.v,.pct{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","Segoe UI Variable Display","Segoe UI",system-ui,sans-serif}
+button,input,select{font:inherit;color:inherit}
+button{border:0;background:none;cursor:pointer}
+a{color:var(--blue);text-decoration:none}
+.wrap{max-width:1000px;margin:0 auto;padding:0 24px}
+nav{position:sticky;top:0;z-index:20;background:var(--bar);backdrop-filter:saturate(180%) blur(20px);-webkit-backdrop-filter:saturate(180%) blur(20px);border-bottom:1px solid var(--line)}
+nav .wrap{display:flex;align-items:center;gap:14px;height:54px}
+.brand{display:flex;align-items:center;gap:9px;font-weight:600;letter-spacing:-.015em;font-size:1.06rem;flex:none}
+.brand svg{width:24px;height:24px}
+.tabs{display:flex;gap:2px;overflow-x:auto;scrollbar-width:none;flex:1;min-width:0;justify-content:center}
+.tabs::-webkit-scrollbar{display:none}
+.tabs a{color:var(--sub);font-size:.84rem;padding:6px 11px;border-radius:999px;white-space:nowrap;transition:color .2s,background .2s}
+.tabs a:hover{color:var(--text)}
+.tabs a.on{color:var(--text);background:var(--track);font-weight:500}
+.pill{display:inline-flex;align-items:center;gap:7px;font-size:.78rem;color:var(--sub);padding:5px 11px;border-radius:999px;background:var(--track);white-space:nowrap;flex:none;max-width:240px;overflow:hidden;text-overflow:ellipsis}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--faint);flex:none}
+.pill.live .dot,.live-dot{background:var(--red);animation:pulse 1.6s ease-in-out infinite}
+.pill.busy .dot{background:var(--blue)}
+.pill.ok .dot{background:var(--green)}
+@keyframes pulse{50%{opacity:.3}}
+.progress{height:2px;position:relative;overflow:hidden}
+.progress i{position:absolute;inset:0 auto 0 0;background:var(--blue);width:0;transition:width .4s ease}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;height:36px;padding:0 18px;border-radius:999px;background:var(--blue);color:#fff;font-weight:500;font-size:.92rem;transition:transform .1s ease-out,opacity .2s;white-space:nowrap}
+.btn:active{transform:scale(.97)}
+.btn.ghost{background:var(--track);color:var(--text)}
+.btn.sm{height:30px;padding:0 13px;font-size:.82rem}
+.btn.red{background:transparent;color:var(--red)}
+.btn:disabled{opacity:.4;cursor:default}
+.icon-btn{width:30px;height:30px;border-radius:50%;display:inline-grid;place-items:center;background:var(--track);color:var(--sub);flex:none}
+.icon-btn svg{width:15px;height:15px}
+.page{display:none;padding-bottom:40px}
+.page.on{display:block;animation:fade .45s cubic-bezier(.2,.8,.2,1) both}
+@keyframes fade{from{opacity:0;transform:translateY(6px)}}
+.hero{text-align:center;padding:68px 0 40px}
+.eyebrow{font-size:.8rem;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--gold)}
+.big{font-size:clamp(5.5rem,19vw,10.5rem);font-weight:700;line-height:1;letter-spacing:-.045em;margin:12px 0 10px;font-variant-numeric:tabular-nums;display:flex;align-items:center;justify-content:center;gap:14px}
+.big .live-dot{width:16px;height:16px;border-radius:50%}
+.lead{font-size:clamp(1.08rem,2.3vw,1.35rem);color:var(--sub);letter-spacing:-.01em}
+.lead b{color:var(--text);font-weight:600}
+.head{padding:52px 0 26px}
+.head h1{font-size:clamp(2.3rem,5.5vw,3.3rem);font-weight:700;letter-spacing:-.035em;line-height:1.05}
+.head p{color:var(--sub);font-size:1.08rem;margin-top:8px;max-width:640px}
+.tiles{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:48px}
+.tiles.five{grid-template-columns:1.4fr repeat(4,minmax(0,1fr))}
+.tile{background:var(--card);border-radius:18px;padding:18px 20px;box-shadow:var(--shadow);position:relative;min-width:0}
+.tile .k{font-size:.8rem;color:var(--sub)}
+.tile .v{font-size:2rem;font-weight:600;letter-spacing:-.03em;line-height:1.15;margin-top:4px;font-variant-numeric:tabular-nums}
+.tile .s{font-size:.78rem;color:var(--faint);margin-top:2px;overflow:hidden;text-overflow:ellipsis}
+.tile.hl{background:linear-gradient(140deg,var(--gold),color-mix(in srgb,var(--gold) 70%,#000));color:#fff}
+.tile.hl .k,.tile.hl .s{color:rgba(255,255,255,.78)}
+.tile.hl .v{font-size:2.6rem}
+.tile .icon-btn{position:absolute;top:12px;right:12px}
+.tile.hl .icon-btn{background:rgba(255,255,255,.2);color:#fff}
+section{margin-bottom:56px}
+.h2row{display:flex;align-items:baseline;justify-content:space-between;gap:16px;margin-bottom:16px}
+h2{font-size:clamp(1.5rem,3.2vw,2rem);font-weight:700;letter-spacing:-.025em;line-height:1.1}
+h3{font-size:1.05rem;font-weight:600;letter-spacing:-.01em}
+.note{font-size:.86rem;color:var(--sub)}
+.h2row .note{text-align:right}
+.card{background:var(--card);border-radius:18px;box-shadow:var(--shadow);padding:20px 22px}
+.grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.list{background:var(--card);border-radius:18px;box-shadow:var(--shadow);overflow:hidden}
+.row{display:grid;grid-template-columns:1fr auto;gap:12px;align-items:center;padding:13px 20px;border-top:1px solid var(--line)}
+.row:first-child{border-top:0}
+.row.click{cursor:pointer}
+.row.click:hover{background:var(--card2)}
+.row .t{font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.row .d{font-size:.8rem;color:var(--sub);overflow:hidden;text-overflow:ellipsis}
+.row .n{font-size:1.2rem;font-weight:600;letter-spacing:-.02em;text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.row .n small{display:block;font-size:.7rem;font-weight:400;color:var(--faint);letter-spacing:0}
+.row.off{opacity:.5}
+.detail{grid-column:1/-1;display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:18px;padding:6px 0 4px;font-size:.84rem;color:var(--sub)}
+.detail b{color:var(--text);font-weight:600;display:block;margin-bottom:4px;font-size:.8rem}
+.detail ul{list-style:none;padding:0;display:grid;gap:2px}
+.more{display:block;width:100%;padding:13px;color:var(--blue);font-size:.9rem;border-top:1px solid var(--line)}
+.empty{padding:28px 20px;color:var(--sub);text-align:center}
+.hbar{display:grid;grid-template-columns:minmax(0,1fr) 34% 56px;gap:12px;align-items:center;padding:9px 0;font-size:.9rem;border-top:1px solid var(--line)}
+.hbar:first-child{border-top:0}
+.hbar .b{height:6px;border-radius:3px;background:var(--track);overflow:hidden}
+.hbar .b i{display:block;height:100%;background:var(--gold);border-radius:3px}
+.hbar .c{text-align:right;font-weight:600;font-variant-numeric:tabular-nums}
+.chart svg{width:100%;height:170px;display:block}
+.chart .axis{display:flex;justify-content:space-between;font-size:.74rem;color:var(--faint);margin-top:8px}
+.banner{display:flex;gap:14px;align-items:center;border-radius:16px;padding:14px 18px;margin-bottom:12px;background:color-mix(in srgb,var(--gold2) 18%,var(--card));box-shadow:var(--shadow)}
+.banner.info{background:color-mix(in srgb,var(--blue) 12%,var(--card))}
+.banner .bt{font-weight:600;font-size:.95rem}
+.banner .bd{font-size:.84rem;color:var(--sub)}
+.banner .grow{flex:1;min-width:0}
+.odds{display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:12px}
+.odd{background:var(--card);border-radius:18px;padding:16px;display:flex;gap:14px;box-shadow:var(--shadow);min-width:0}
+.thumb{width:64px;height:64px;border-radius:13px;object-fit:cover;flex:none;background:var(--card2);display:grid;place-items:center;font-size:1.6rem}
+.odd .meta{flex:1;min-width:0}
+.kind{font-size:.74rem;color:var(--sub);font-weight:500;display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.name{font-weight:600;letter-spacing:-.01em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cbar{height:5px;border-radius:3px;background:var(--track);margin:9px 0 6px;overflow:hidden}
+.cbar i{display:block;height:100%;border-radius:3px;background:var(--faint);transition:width .8s cubic-bezier(.2,.8,.2,1)}
+.line{display:flex;justify-content:space-between;align-items:flex-end;font-size:.76rem;color:var(--faint);gap:8px}
+.pct{font-size:1.3rem;font-weight:600;letter-spacing:-.02em;color:var(--text);font-variant-numeric:tabular-nums;white-space:nowrap}
+.pct.boost{color:var(--orange)}
+.chip{display:inline-block;font-size:.68rem;font-weight:600;padding:2px 8px;border-radius:999px;background:var(--track);color:var(--sub);white-space:nowrap}
+.chip.certain,.chip.vlikely,.chip.likely,.chip.got{background:color-mix(in srgb,var(--green) 18%,transparent);color:var(--green)}
+.chip.possible,.chip.boost{background:color-mix(in srgb,var(--orange) 18%,transparent);color:var(--orange)}
+.chip.weekly{background:color-mix(in srgb,var(--blue) 15%,transparent);color:var(--blue)}
+.cbar i.certain,.cbar i.vlikely,.cbar i.likely{background:var(--green)}
+.cbar i.possible{background:var(--orange)}
+.feature{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-bottom:12px}
+.feat{background:var(--card);border-radius:20px;padding:22px;box-shadow:var(--shadow);min-width:0}
+.feat.gold{background:linear-gradient(150deg,color-mix(in srgb,var(--gold2) 24%,var(--card)),var(--card) 65%)}
+.feat .top{display:flex;gap:14px;align-items:center;margin-bottom:14px}
+.feat .thumb{width:72px;height:72px}
+.feat .p{font-size:2.8rem;font-weight:700;letter-spacing:-.04em;line-height:1;font-variant-numeric:tabular-nums;display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.feat .lines{display:grid;gap:4px;margin-top:12px;font-size:.82rem;color:var(--sub)}
+.coll{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px}
+.prize{background:var(--card);border-radius:18px;padding:12px;box-shadow:var(--shadow);text-align:left;position:relative;transition:transform .1s ease-out}
+.prize:active{transform:scale(.98)}
+.prize img,.prize .ph{width:100%;aspect-ratio:1;border-radius:12px;object-fit:cover;background:var(--card2);display:grid;place-items:center;font-size:2rem;filter:grayscale(1);opacity:.55;transition:filter .3s,opacity .3s}
+.prize.got img,.prize.got .ph{filter:none;opacity:1}
+.prize .name{font-size:.86rem;margin-top:8px}
+.prize .check{position:absolute;top:18px;right:18px;width:24px;height:24px;border-radius:50%;background:rgba(0,0,0,.35);display:grid;place-items:center;color:#fff;backdrop-filter:blur(8px)}
+.prize.got .check{background:var(--green)}
+.prize .check svg{width:13px;height:13px}
+.settings{display:grid;gap:28px}
+.group h3{font-size:.8rem;font-weight:500;color:var(--sub);text-transform:uppercase;letter-spacing:.05em;margin:0 0 8px 6px}
+.set{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:13px 20px;border-top:1px solid var(--line);min-height:54px}
+.set:first-child{border-top:0}
+.set .lab{min-width:0}
+.set .lab div:first-child{font-weight:500}
+.set .lab div+div{font-size:.8rem;color:var(--sub)}
+.seg{display:inline-flex;background:var(--track);border-radius:9px;padding:2px;flex:none}
+.seg button{font-size:.82rem;padding:5px 12px;border-radius:7px;color:var(--sub);white-space:nowrap}
+.seg button.on{background:var(--card);color:var(--text);box-shadow:0 1px 3px rgba(0,0,0,.12);font-weight:500}
+.switch{position:relative;width:46px;height:28px;flex:none}
+.switch input{position:absolute;opacity:0;inset:0;cursor:pointer;margin:0;z-index:1}
+.switch i{position:absolute;inset:0;border-radius:999px;background:var(--track);transition:background .2s}
+.switch i::after{content:"";position:absolute;top:2px;left:2px;width:24px;height:24px;border-radius:50%;background:#fff;box-shadow:0 2px 5px rgba(0,0,0,.2);transition:transform .25s cubic-bezier(.3,1.3,.5,1)}
+.switch input:checked+i{background:var(--green)}
+.switch input:checked+i::after{transform:translateX(18px)}
+.switch input:focus-visible+i{outline:2px solid var(--blue);outline-offset:2px}
+.field{width:100%;height:36px;border-radius:10px;border:1px solid var(--line);background:var(--card2);padding:0 12px;font-size:.9rem}
+.field:focus{outline:2px solid var(--blue);outline-offset:-1px}
+select.field{width:auto}
+input[type=range]{accent-color:var(--blue);width:160px}
+.code{display:flex;gap:8px;align-items:center;margin-top:12px;background:var(--card2);border:1px solid var(--line);border-radius:12px;padding:9px 9px 9px 14px}
+.code code{flex:1;font:.78rem/1.45 ui-monospace,"SF Mono","Cascadia Mono",Consolas,monospace;word-break:break-all}
+.setup{max-width:660px;margin:0 auto;padding:72px 0 40px;text-align:center}
+.setup h1{font-size:clamp(2.6rem,7vw,4rem);font-weight:700;letter-spacing:-.04em;line-height:1.05}
+.setup .lead{margin:16px auto 36px;max-width:540px}
+.steps{text-align:left;display:grid;gap:12px}
+.step{background:var(--card);border-radius:18px;padding:20px 22px;box-shadow:var(--shadow);display:grid;grid-template-columns:30px 1fr;gap:14px}
+.step .num{width:28px;height:28px;border-radius:50%;background:var(--track);display:grid;place-items:center;font-weight:600;font-size:.88rem}
+.step p{font-size:.9rem;color:var(--sub);margin-top:3px}
+.step .btn{margin-top:14px}
+.warn{font-size:.85rem;color:var(--red);margin-top:10px}
+.prose{display:grid;gap:12px}
+.prose .card p,.prose .card li{font-size:.92rem;color:var(--sub)}
+.prose .card p+p{margin-top:8px}
+.prose .card ul{padding-left:18px;margin-top:8px;display:grid;gap:4px}
+.prose .card h3{margin-bottom:6px}
+.ov-stage{border-radius:20px;min-height:220px;display:grid;place-items:center;background:linear-gradient(135deg,#3a6b8f,#7aa36a 60%,#c9b27a);position:relative;overflow:hidden;margin-bottom:12px}
+.ov-stage::after{content:"";position:absolute;inset:0;background:radial-gradient(circle at 70% 30%,rgba(255,255,255,.25),transparent 60%)}
+.ov-stage>div{position:relative;z-index:1}
+.ov{color:#fff;font-family:-apple-system,"SF Pro Display","Segoe UI Variable Display","Segoe UI",system-ui,sans-serif;text-align:center;line-height:1}
+.ov.hud{text-shadow:0 0 3px #000,0 0 3px #000,0 2px 6px rgba(0,0,0,.6)}
+.ov .ot{display:flex;align-items:center;justify-content:center;gap:.18em;font-size:3.4em;font-weight:800;letter-spacing:-.03em;font-variant-numeric:tabular-nums}
+.ov .ot svg{width:.62em;height:.62em;filter:drop-shadow(0 1px 2px rgba(0,0,0,.6))}
+.ov .od{width:.2em;height:.2em;border-radius:50%;background:#ff3b30;box-shadow:0 0 6px #ff3b30}
+.ov .ol{display:flex;gap:.9em;justify-content:center;margin-top:.45em;font-size:1em;font-weight:700;font-variant-numeric:tabular-nums}
+.ov .ol span{opacity:.92}
+.ov .ol small{font-size:.75em;opacity:.8;font-weight:600;margin-right:.25em;text-transform:uppercase;letter-spacing:.04em}
+.ov.card{background:rgba(18,18,20,.82);backdrop-filter:blur(20px);border-radius:1.1em;padding:1em 1.3em;text-align:left;min-width:15em;border:1px solid rgba(255,255,255,.1)}
+.ov.card .ot{justify-content:flex-start;font-size:2.8em}
+.ov.card .ol{justify-content:flex-start;flex-wrap:wrap;gap:.3em 1em}
+.ov .osq{margin-top:.5em;font-size:.85em;opacity:.8;font-weight:600}
+dialog{border:0;border-radius:22px;padding:0;background:var(--card);color:var(--text);width:min(520px,calc(100vw - 32px));box-shadow:0 30px 80px rgba(0,0,0,.35)}
+dialog::backdrop{background:var(--scrim);backdrop-filter:blur(4px)}
+dialog[open]{animation:pop .3s cubic-bezier(.2,.9,.3,1.1)}
+@keyframes pop{from{opacity:0;transform:scale(.96)}}
+.dlg{padding:24px}
+.dlg h2{font-size:1.5rem;margin-bottom:6px}
+.dlg .row2{display:flex;gap:8px;align-items:center;margin-top:12px}
+.dlg label.ck{display:flex;gap:8px;align-items:center;font-size:.88rem;color:var(--sub);margin-top:10px}
+.dlg .entries{margin-top:14px;max-height:220px;overflow:auto;border-radius:12px;background:var(--card2)}
+.dlg .entries .row{padding:9px 14px}
+.dlg hr{border:0;border-top:1px solid var(--line);margin:20px 0}
+.dlg .foot{display:flex;justify-content:flex-end;margin-top:20px}
+footer{border-top:1px solid var(--line);padding:22px 0 40px;font-size:.76rem;color:var(--faint);line-height:1.6}
+footer a{color:var(--sub)}
+.hidden{display:none!important}
+body.obs{background:transparent!important}
+body.obs>*:not(#obsRoot){display:none!important}
+#obsRoot{display:none;padding:10px}
+body.obs #obsRoot{display:block}
+@media (max-width:860px){nav .wrap{flex-wrap:wrap;height:auto;padding-top:9px;padding-bottom:7px;gap:8px 12px}.tabs{order:3;flex-basis:100%;justify-content:flex-start;margin:0 -6px}.brand{flex:1}.tiles,.tiles.five{grid-template-columns:repeat(2,minmax(0,1fr))}.tiles.five .tile.hl{grid-column:1/-1}.grid2,.feature{grid-template-columns:1fr}.h2row{flex-direction:column;align-items:flex-start;gap:4px}.h2row .note{text-align:left}}
+@media (max-width:560px){.wrap{padding:0 16px}.hero{padding:44px 0 30px}.head{padding:36px 0 20px}.set{flex-wrap:wrap}.hbar{grid-template-columns:minmax(0,1fr) 28% 48px}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+@media (prefers-reduced-transparency:reduce){nav{background:var(--bg);backdrop-filter:none}}
+</style>
+</head>
+<body>
+<nav>
+  <div class="wrap">
+    <a class="brand" href="#accueil" style="color:inherit"><svg viewBox="0 0 32 32" aria-hidden="true"><rect x="1" y="1" width="30" height="30" rx="7" fill="#111113"/><rect x="6" y="14" width="20" height="11" rx="2" fill="#c8952c"/><path d="M6 15a10 8 0 0 1 20 0z" fill="#e8b04b"/><rect x="14.5" y="15" width="3" height="4.5" rx=".8" fill="#fff"/></svg>Coffres</a>
+    <div class="tabs" id="tabs"></div>
+    <span class="pill" id="status"><span class="dot"></span><span id="statusText"></span></span>
+  </div>
+  <div class="progress"><i id="prog"></i></div>
+</nav>
+
+<main class="wrap" id="main"></main>
+
+<footer><div class="wrap" id="foot"></div></footer>
+
+<dialog id="dlg"><div class="dlg" id="dlgBody"></div></dialog>
+<div id="obsRoot"></div>
+
+<script type="module">
+const $ = (id) => document.getElementById(id);
+const CONTENT_URL = 'https://raw.githubusercontent.com/LED-N/Fortnite-ChestCounter/main/content/content.json';
+const LIVE_MS = 20000, TIMEOUT_MS = 180000, ENGINE = 3, VERSION = '1.1.1';
+const store = {
+  get(k, d) { try { const v = localStorage.getItem('coffres.' + k); return v == null ? d : JSON.parse(v); } catch { return d; } },
+  set(k, v) { try { localStorage.setItem('coffres.' + k, JSON.stringify(v)); } catch {} if (mode === 'exe') pushUser(); },
+};
+let userTimer = null;
+function pushUser() { clearTimeout(userTimer); userTimer = setTimeout(() => api('/api/user', { user: { prefs, manual, collection, dismissed } }).catch(() => {}), 300); }
+const prefs = Object.assign({
+  lang: (navigator.language || 'fr').slice(0, 2).replace(/^(?!en|es).*/, 'fr'), utc: false, clock: 'auto', profile: null, squad: false, showOff: false, teamTreasures: false,
+  notifyMatches: true, notifyHours: true, live: true, update: 'prompt', welcomed: false, seenVersion: null,
+  overlay: { style: 'hud', size: 1, opacity: 1, squad: false, native: true, onlyGame: true },
+}, store.get('prefs', {}));
+prefs.overlay = { style: 'hud', size: 1, opacity: 1, squad: false, native: true, onlyGame: true, ...prefs.overlay };
+const savePrefs = () => store.set('prefs', prefs);
+const T = (fr, en, es) => prefs.lang === 'en' ? en : prefs.lang === 'es' ? es : fr;
+const loc = () => ({ fr: 'fr-FR', en: 'en-GB', es: 'es-ES' })[prefs.lang];
+const N = (n, o) => Number(n || 0).toLocaleString(loc(), o);
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
+const plural = (n, fr, en, es) => { const w = T(fr, en, es), many = prefs.lang === 'fr' ? n > 1 : n !== 1; return `${N(n)} ${many ? w + (prefs.lang === 'en' && /ch$/.test(w) ? 'es' : 's') : w}`; };
+const ICON = {
+  pencil: '<svg viewBox="0 0 16 16" fill="currentColor"><path d="M11.7 1.3a1.5 1.5 0 0 1 2.1 0l.9.9a1.5 1.5 0 0 1 0 2.1L5.6 13.4 2 14l.6-3.6z"/></svg>',
+  check: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 8.5l3 3 6-7"/></svg>',
+  chest: '<svg viewBox="0 0 32 32"><rect x="3" y="13" width="26" height="15" rx="3" fill="#c8952c"/><path d="M3 15a13 9 0 0 1 26 0z" fill="#e8b04b"/><rect x="14" y="15" width="4" height="6" rx="1" fill="#fff"/></svg>',
+};
+
+let mode = 'web', exeState = null, dir = null, content = null, matches = {}, live = false, qDone = 0, qTotal = 0, scanning = false;
+let page = 'accueil', limits = { matches: 10, treasures: 10 }, expanded = new Set(), pip = null, lastSig = '';
+const sessionStart = Date.now();
+let manual = store.get('manual', []), collection = store.get('collection', {}), dismissed = store.get('dismissed', []);
+
+// ---------------- names ----------------
+const KIND = {
+  outfit: ['Tenue en or', 'Gold outfit', 'Atuendo dorado'], car: ['Véhicule & décalcomanie', 'Vehicle & decal', 'Vehículo y calcomanía'],
+  pickaxe: ['Pioche ou sac à dos', 'Pickaxe or back bling', 'Pico o mochila'], backbling: ['Pioche ou sac à dos', 'Pickaxe or back bling', 'Pico o mochila'],
+  jam: ['Piste de jam', 'Jam track', 'Pista de improvisación'], loading: ['Écran de chargement', 'Loading screen', 'Pantalla de carga'],
+  'pirate-shop': ['Accès boutique pirate', 'Pirate Shop Access', 'Acceso a la tienda pirata'], gizmo: ['Gadgets de la chasse', 'Hunt gizmos', 'Artilugios de la búsqueda'],
+};
+const kindName = (k) => KIND[k] ? T(...KIND[k]) : k;
+const CHEST = {
+  'Coffre': ['Chest', 'Cofre'], 'Coffre rare': ['Rare chest', 'Cofre raro'], 'Coffre enterré': ['Buried chest', 'Cofre enterrado'],
+  "Coffre d'esprit (rare)": ['Spirit chest (rare)', 'Cofre de espíritu (raro)'], "Coffre des affiches d'esprit": ['Spirit poster chest', 'Cofre de carteles de espíritu'],
+  'Autre coffre': ['Other chest', 'Otro cofre'], 'Canon à butin': ['Loot cannon', 'Cañón de botín'], 'Caisse de munitions': ['Ammo box', 'Caja de munición'],
+  'Caisse de nourriture': ['Food box', 'Caja de comida'], 'Autre conteneur': ['Other container', 'Otro contenedor'], 'inconnu': ['unknown', 'desconocido'],
+  'Coffre doré': ['Golden chest', 'Cofre dorado'],
+};
+const chestName = (k) => CHEST[k] ? T(k, ...CHEST[k]) : k;
+const EMOJI = { 'pirate-shop': '🏴‍☠️', gizmo: '✨' };
+const modeName = (p) => {
+  if (!p) return T('Autre mode', 'Other mode', 'Otro modo');
+  const size = (p.match(/(Solo|Duo|Trio|Squad)/i) || [, ''])[1];
+  if (!size) return p.replace(/^Playlist_/, '');
+  const s = { solo: 'Solo', duo: 'Duo', trio: 'Trio', squad: T('Section', 'Squad', 'Escuadrón') }[size.toLowerCase()];
+  return `${s} · ${/NoBuild/i.test(p) ? T('Zéro construction', 'Zero Build', 'Cero construcción') : T('Construction', 'Build', 'Construcción')}`;
+};
+
+// ---------------- time ----------------
+const tz = () => (prefs.utc ? { timeZone: 'UTC' } : {});
+const h12 = () => (prefs.clock === 'auto' ? {} : { hour12: prefs.clock === '12' });
+const time = (t) => new Date(t).toLocaleTimeString(loc(), { hour: '2-digit', minute: '2-digit', ...tz(), ...h12() }) + (prefs.utc ? ' UTC' : '');
+const day = (t) => new Date(t).toLocaleDateString(loc(), { weekday: 'short', day: 'numeric', month: 'short', ...tz() });
+const dayKey = (t) => new Date(t).toLocaleDateString('en-CA', tz());
+const when = (t) => {
+  const k = dayKey(t), today = dayKey(Date.now()), yest = dayKey(Date.now() - 864e5);
+  return `${k === today ? T("Aujourd'hui", 'Today', 'Hoy') : k === yest ? T('Hier', 'Yesterday', 'Ayer') : day(t)}, ${time(t)}`;
+};
+const left = (t) => {
+  const s = Math.max(0, t - Date.now()) / 1000, d = Math.floor(s / 86400), h = Math.floor(s % 86400 / 3600), m = Math.floor(s % 3600 / 60);
+  return d ? `${d} ${T('j', 'd', 'd')} ${h} h` : h ? `${h} h ${m} min` : `${m} min`;
+};
+const mmss = (s) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
+
+// ---------------- treasure hunt data ----------------
+const weeks = () => (content?.weeks || []).map((w) => ({ ...w, from: Date.parse(w.start), to: Date.parse(w.end) }));
+const huntStart = () => weeks()[0]?.from ?? 0;
+const huntEnd = () => weeks().at(-1)?.to ?? 0;
+const shownWeek = (now = Date.now()) => weeks().find((w) => w.from <= now && now < w.to) || weeks().filter((w) => w.to <= now).at(-1);
+const allPrizes = () => (content ? [content.pirateShop, ...content.weeks.flatMap((w) => w.prizes)].filter(Boolean) : []);
+const prizeFor = (id) => id && allPrizes().find((p) => p.prizeIds?.includes(id));
+const oddsOf = (kind) => content?.odds.find((o) => o.kind === kind);
+const hours = () => (content?.treasureHours || []).map((h) => ({ ...h, from: Date.parse(h.start), to: Date.parse(h.end) }));
+const boost = (kind, t) => { const h = hours().find((h) => t >= h.from && t < h.to); const b = h?.boosts?.[kind]; return b > 0 ? b : 1; };
+function chance(odds, times, plain) {
+  const p = 1 / odds.oneIn;
+  let log = plain > 0 ? plain * Math.log1p(-p) : 0, exp = plain > 0 ? plain * p : 0, boosted = false;
+  for (const t of times) { const b = boost(odds.kind, t), q = Math.min(0.999, p * b); if (b > 1) boosted = true; log += Math.log1p(-q); exp += q; }
+  return { p: -Math.expm1(log), log, exp, boosted, n: times.length + Math.max(0, plain) };
+}
+const chestsFor = (oneIn, c) => Math.ceil(Math.log(1 - c) / Math.log1p(-1 / oneIn));
+function verdict(p) {
+  const v = p * 100;
+  return v >= 99.95 ? ['certain', T('Presque sûr', 'Almost certain', 'Casi seguro')] : v >= 95 ? ['vlikely', T('Très probable', 'Very likely', 'Muy probable')]
+    : v >= 75 ? ['likely', T('Probable', 'Likely', 'Probable')] : v >= 25 ? ['possible', T('Peut-être', 'Maybe', 'Quizás')]
+    : v >= 5 ? ['unlikely', T('Peu probable', 'Unlikely', 'Poco probable')] : ['vunlikely', T('Très peu probable', 'Very unlikely', 'Muy poco probable')];
+}
+const pct = (p) => p >= 0.9995 ? '>99,9\u202f%'.replace(',', prefs.lang === 'en' ? '.' : ',') : N(p * 100, p < 0.001 ? { maximumSignificantDigits: 2 } : { maximumFractionDigits: p < 0.1 ? 2 : 1 }) + '\u202f%';
+const img = (prize, cls = 'thumb', kind) => prize?.image ? `<img class="${cls}" src="${esc(prize.image)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.style.visibility='hidden'">` : `<div class="${cls} ph">${EMOJI[kind || prize?.kind] || '🎁'}</div>`;
+
+// ---------------- data model ----------------
+const keyOf = (m) => m.epic || m.player || '?';
+function profiles() {
+  const by = {};
+  for (const m of Object.values(matches)) if (!m.error && m.player) {
+    const k = keyOf(m); const s = m.start ?? m.mtime;
+    if (!by[k] || s > by[k].last) by[k] = { key: k, name: m.player, last: s, n: (by[k]?.n || 0) + 1 }; else by[k].n++;
+  }
+  return Object.values(by).sort((a, b) => b.last - a.last);
+}
+const profileKey = () => { const ps = profiles(); return ps.find((p) => p.key === prefs.profile)?.key ?? ps[0]?.key ?? null; };
+
+function stats() {
+  const pk = profileKey();
+  const all = Object.values(matches).filter((m) => !m.error && m.list && (!pk || !m.player || keyOf(m) === pk))
+    .map((m) => ({ ...m, st: m.start ?? m.mtime })).sort((a, b) => b.st - a.st);
+  const counted = all.filter((m) => m.counts);
+  const mine = manual.filter((e) => (e.profile ?? pk) === pk);
+  const manualSum = mine.reduce((s, e) => s + e.chests, 0);
+  const replayChests = counted.reduce((s, m) => s + m.chests, 0);
+  const teamChests = counted.reduce((s, m) => s + (m.teamChests || 0), 0);
+  const total = Math.max(0, replayChests + manualSum);
+  const times = counted.flatMap((m) => m.list.filter((c) => isChestKind(c.k)).map((c) => m.st + c.t * 1000)).filter((t) => t >= huntStart()).sort((a, b) => a - b);
+  const week = shownWeek();
+  const weekTimes = week ? times.filter((t) => t >= week.from && t < week.to) : [];
+  const weekManual = week ? Math.max(0, mine.filter((e) => e.week === week.start).reduce((s, e) => s + e.chests, 0)) : 0;
+  const weekChests = week ? counted.filter((m) => m.st >= week.from && m.st < week.to).reduce((s, m) => s + m.chests, 0) + weekManual : 0;
+  const treasures = counted.flatMap((m) => m.treasures.map((t) => ({ ...t, st: m.st + (t.t || 0) * 1000, match: m })));
+  const teamTreasures = counted.flatMap((m) => (m.team || []).map((t) => ({ ...t, st: m.st + (t.t || 0) * 1000, match: m, isTeam: true })));
+  const today = dayKey(Date.now());
+  const todayM = counted.filter((m) => dayKey(m.st) === today);
+  const session = counted.filter((m) => m.mtime >= sessionStart || m.st >= sessionStart);
+  const best = counted.reduce((b, m) => (!b || m.chests > b.chests ? m : b), null);
+  const got = new Set(all.flatMap((m) => m.treasures.map((t) => prizeFor(t.p)?.id)).filter(Boolean));
+  return { pk, all, counted, mine, manualSum, total, teamChests, times, week, weekTimes, weekManual, weekChests, treasures, teamTreasures, todayM, session, best, got, last: counted[0] };
+}
+const NON_CHEST = new Set(['Canon à butin', 'Caisse de munitions', 'Caisse de nourriture', 'Autre conteneur', 'inconnu']);
+const isChestKind = (k) => !NON_CHEST.has(k);
+const owned = (prize, s) => prize && (collection[prize.id] ?? s.got.has(prize.id));
+
+// ---------------- web mode: folder + wasm workers ----------------
+const idb = new Promise((res, rej) => {
+  const r = indexedDB.open('coffres', 1);
+  r.onupgradeneeded = () => r.result.createObjectStore('kv');
+  r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error);
+});
+async function kv(key, value) {
+  const db = await idb;
+  return new Promise((res, rej) => {
+    const tx = db.transaction('kv', value === undefined ? 'readonly' : 'readwrite');
+    const req = value === undefined ? tx.objectStore('kv').get(key) : tx.objectStore('kv').put(value, key);
+    req.onsuccess = () => res(req.result); req.onerror = () => rej(req.error);
+  });
+}
+const POOL = Math.max(1, Math.min(3, Math.floor((navigator.hardwareConcurrency || 4) / 3)));
+let workers = [], seq = 0;
+function makeWorker() {
+  const w = new Worker('worker.js', { type: 'module' });
+  w.ready = new Promise((res, rej) => { w.onmessage = (e) => e.data.ready && res(); w.onerror = rej; });
+  return w;
+}
+async function analyze(slot, file) {
+  const w = workers[slot];
+  await w.ready;
+  const buf = await file.arrayBuffer(), id = ++seq;
+  return new Promise((res) => {
+    const timer = setTimeout(() => { w.terminate(); workers[slot] = makeWorker(); res({ ok: false, error: 'Timeout' }); }, TIMEOUT_MS);
+    w.onmessage = (e) => { if (e.data.id === id) { clearTimeout(timer); res(e.data.out); } };
+    w.postMessage({ id, name: file.name, buf }, [buf]);
+  });
+}
+async function scan() {
+  if (mode !== 'web' || !dir || scanning) return;
+  scanning = true;
+  try {
+    const todo = []; let newest = 0;
+    for await (const [name, h] of dir.entries()) {
+      if (h.kind !== 'file' || !name.endsWith('.replay')) continue;
+      const f = await h.getFile();
+      newest = Math.max(newest, f.lastModified);
+      if (Date.now() - f.lastModified < LIVE_MS) continue;
+      const k = matches[name];
+      if (!k || k.v !== ENGINE || (k.error && k.size !== f.size)) todo.push(f);
+    }
+    live = Date.now() - newest < LIVE_MS;
+    todo.sort((a, b) => b.lastModified - a.lastModified);
+    qTotal = todo.length; qDone = 0; update();
+    if (todo.length && !workers.length) workers = Array.from({ length: POOL }, makeWorker);
+    let next = 0;
+    await Promise.all(workers.map(async (_, slot) => {
+      while (next < todo.length) {
+        const f = todo[next++], r = await analyze(slot, f);
+        const isNew = !matches[f.name] && f.lastModified >= sessionStart;
+        matches[f.name] = { file: f.name, size: f.size, mtime: f.lastModified, v: ENGINE, ...(r.ok ? r.m : { error: r.error }) };
+        if (isNew && r.ok && r.m.counts && prefs.notifyMatches && window.Notification?.permission === 'granted') {
+          new Notification(T(`Partie comptée : +${r.m.chests} coffres`, `Match counted: +${r.m.chests} chests`, `Partida contada: +${r.m.chests} cofres`), { body: r.m.treasures.length ? '★ ' + r.m.treasures.map((t) => prizeFor(t.p)?.name || t.n).join(', ') : `Total : ${N(stats().total)}`, icon: 'icon.png' });
+        }
+        qDone++;
+        await kv('matches', matches);
+        update();
+      }
+    }));
+  } catch (e) {
+    if (e.name === 'NotAllowedError' || e.name === 'NotFoundError') { dir = null; go('accueil'); }
+    else console.error(e);
+  } finally { scanning = false; qTotal = qDone = 0; update(); }
+}
+async function pickFolder() {
+  try {
+    const h = await showDirectoryPicker({ id: 'replays', mode: 'read' });
+    dir = h; await kv('dir', h); go('accueil'); scan();
+  } catch (e) {
+    if (e.name !== 'AbortError') alert(T("Chrome refuse ce dossier. Utilise l'étape 2 pour le déplacer hors d'AppData.", 'Chrome refuses this folder. Use step 2 to move it out of AppData.', 'Chrome rechaza esta carpeta. Usa el paso 2 para sacarla de AppData.') + '\n\n' + e.message);
+  }
+}
+
+// ---------------- exe mode ----------------
+async function api(path, body) {
+  const r = await fetch(path, { method: 'POST', headers: { 'X-Coffres': '1', 'Content-Type': 'application/json' }, body: JSON.stringify(body || {}) });
+  if (!r.ok) throw new Error(r.status);
+}
+async function poll() {
+  try {
+    exeState = await (await fetch('/api/state', { cache: 'no-store' })).json();
+    if (loadedVersion && exeState.version !== loadedVersion) return location.reload();
+    matches = exeState.matches; live = exeState.live; qDone = exeState.done; qTotal = exeState.total;
+  } catch { exeState = null; }
+  update();
+}
+
+// ---------------- status + rendering ----------------
+function update() {
+  const busy = qTotal > 0;
+  $('status').className = 'pill ' + (live ? 'live' : busy ? 'busy' : (dir || exeState) ? 'ok' : '');
+  $('statusText').textContent = mode === 'exe' && !exeState ? T('Coffres est fermé', 'Coffres is closed', 'Coffres está cerrado')
+    : live ? T('Partie en cours', 'Match in progress', 'Partida en curso')
+    : busy ? `${T('Analyse', 'Analyzing', 'Analizando')} ${qDone}/${qTotal}`
+    : (dir || exeState) ? T("En attente d'une partie", 'Waiting for a match', 'Esperando una partida') : T('Prêt', 'Ready', 'Listo');
+  $('prog').style.width = busy ? `${qDone / qTotal * 100}%` : '0';
+  const sig = [Object.keys(matches).length, qDone, live, !!content, !!dir, !!exeState, prefs.lang, exeState?.liveMatch?.chests, exeState?.update?.version, exeState?.updating, exeState?.updateError, exeState?.overlay?.running, exeState?.overlay?.visible, exeState?.overlay?.locked, exeState?.autostart].join('|');
+  if (sig !== lastSig) { lastSig = sig; render(); }
+  else renderOverlays(stats());
+}
+
+const PAGES = [
+  ['accueil', () => T('Accueil', 'Home', 'Inicio')], ['rapport', () => T('Rapport', 'Report', 'Informe')], ['chances', () => T('Chances', 'Chances', 'Probabilidades')],
+  ['collection', () => T('Collection', 'Collection', 'Colección')], ['parties', () => T('Parties', 'Matches', 'Partidas')], ['overlay', () => 'Overlay'],
+  ['reglages', () => T('Réglages', 'Settings', 'Ajustes')], ['aide', () => T('Aide', 'Help', 'Ayuda')],
+];
+function go(p) { if (location.hash !== '#' + p) location.hash = p; else render(); }
+window.addEventListener('hashchange', () => { page = PAGES.some(([k]) => k === location.hash.slice(1)) ? location.hash.slice(1) : 'accueil'; render(); scrollTo({ top: 0 }); });
+
+function render() {
+  document.documentElement.lang = prefs.lang;
+  const needsSetup = mode === 'web' && !dir;
+  $('tabs').innerHTML = PAGES.map(([k, name]) => `<a href="#${k}" class="${k === page ? 'on' : ''}">${name()}</a>`).join('');
+  $('tabs').classList.toggle('hidden', needsSetup && page === 'accueil');
+  const s = stats();
+  const html = needsSetup && ['accueil', 'rapport', 'chances', 'parties'].includes(page) ? setupPage() : ({ accueil: home, rapport: report, chances: chancesPage, collection: collectionPage, parties: matchesPage, overlay: overlayPage, reglages: settingsPage, aide: helpPage })[page](s);
+  $('main').innerHTML = `<div class="page on">${html}</div>`;
+  $('foot').innerHTML = T(
+    `Moteur d'analyse : <a href="https://github.com/LED-N/Fortnite-ChestCounter" rel="noopener">Fortnite Chest Counter</a> de LED-N (licence MIT). Cotes : publiées par Epic Games. Coffres ${VERSION} · pas affilié à Epic Games.`,
+    `Analysis engine: <a href="https://github.com/LED-N/Fortnite-ChestCounter" rel="noopener">Fortnite Chest Counter</a> by LED-N (MIT license). Odds: published by Epic Games. Coffres ${VERSION} · not affiliated with Epic Games.`,
+    `Motor de análisis: <a href="https://github.com/LED-N/Fortnite-ChestCounter" rel="noopener">Fortnite Chest Counter</a> de LED-N (licencia MIT). Probabilidades: publicadas por Epic Games. Coffres ${VERSION} · sin afiliación con Epic Games.`)
+    + ` · <a href="https://github.com/Rub19/coffres" rel="noopener">${T('Code source', 'Source code', 'Código fuente')}</a> (GPL v3) · <a href="licenses.txt">${T('Licences', 'Licenses', 'Licencias')}</a>`;
+  bind();
+  renderOverlays(s);
+  if (page === 'accueil') countTo($('total'), s.total + (prefs.squad ? s.teamChests : 0) + (exeState?.liveMatch?.chests || 0));
+}
+
+let shownTotal = 0;
+function countTo(el, to) {
+  if (!el) return;
+  const from = shownTotal; shownTotal = to;
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches || from === to) { el.textContent = N(to); return; }
+  const t0 = performance.now();
+  const step = (t) => { const k = Math.min(1, (t - t0) / 700), e = 1 - (1 - k) ** 3; el.textContent = N(Math.round(from + (to - from) * e)); if (k < 1) requestAnimationFrame(step); };
+  requestAnimationFrame(step);
+}
+
+// ---------------- pages ----------------
+function setupPage() {
+  const fsa = 'showDirectoryPicker' in window;
+  return `<div class="setup">
+    <div class="eyebrow">${T('Chasse au trésor', 'Treasure hunt', 'Búsqueda del tesoro')}</div>
+    <h1>${T('Chaque coffre.<br>Compté tout seul.', 'Every chest.<br>Counted for you.', 'Cada cofre.<br>Contado solo.')}</h1>
+    <p class="lead">${T("Le site lit les replays que Fortnite enregistre après chaque partie. Rien n'est envoyé : tout reste sur ton PC.", 'The site reads the replays Fortnite saves after each match. Nothing is sent: everything stays on your PC.', 'La web lee las repeticiones que Fortnite guarda tras cada partida. No se envía nada: todo se queda en tu PC.')}</p>
+    <div class="steps">
+      <div class="step"><div class="num">1</div><div><h3>${T('Active les replays', 'Turn on replays', 'Activa las repeticiones')}</h3>
+        <p>${T('Fortnite : Paramètres → Jeu → Replays → Enregistrer les replays : <b>Oui</b>.', 'Fortnite: Settings → Game → Replays → Record Replays: <b>On</b>.', 'Fortnite: Ajustes → Juego → Repeticiones → Grabar repeticiones: <b>Sí</b>.')}</p></div></div>
+      <div class="step"><div class="num">2</div><div><h3>${T('Rends le dossier lisible', 'Make the folder readable', 'Haz la carpeta legible')}</h3>
+        <p>${T("Chrome refuse d'ouvrir AppData. Une seule fois, Fortnite fermé, colle ça dans PowerShell : tes replays vont dans <b>FortniteReplays</b> et un lien reste à l'ancien endroit, Fortnite ne voit pas la différence.", 'Chrome refuses to open AppData. Once, with Fortnite closed, paste this into PowerShell: your replays move to <b>FortniteReplays</b> and a link stays at the old place, Fortnite sees no difference.', 'Chrome no abre AppData. Una vez, con Fortnite cerrado, pega esto en PowerShell: tus repeticiones van a <b>FortniteReplays</b> y queda un enlace en el sitio antiguo.')}</p>
+        <div class="code"><code id="cmd">Move-Item "$env:LOCALAPPDATA\\FortniteGame\\Saved\\Demos" "$env:USERPROFILE\\FortniteReplays"; New-Item -ItemType Junction -Path "$env:LOCALAPPDATA\\FortniteGame\\Saved\\Demos" -Target "$env:USERPROFILE\\FortniteReplays"</code><button class="btn ghost sm" data-copy="cmd">${T('Copier', 'Copy', 'Copiar')}</button></div>
+        <p style="margin-top:10px">${T("Pas envie ? Prends l'appli Windows : elle lit le dossier directement.", "Rather not? Get the Windows app: it reads the folder directly.", '¿Prefieres no? Usa la app de Windows: lee la carpeta directamente.')} <a href="Coffres.exe" download>Coffres.exe</a></p></div></div>
+      <div class="step"><div class="num">3</div><div><h3>${T('Choisis le dossier', 'Pick the folder', 'Elige la carpeta')}</h3>
+        <p>${T('Sélectionne <b>C:\\Users\\<i>toi</i>\\FortniteReplays</b> puis « Autoriser à chaque visite ». Garde l\'onglet ouvert : chaque partie est comptée quelques secondes après la fin.', 'Select <b>C:\\Users\\<i>you</i>\\FortniteReplays</b>, then "Allow on every visit". Keep the tab open: each match is counted a few seconds after it ends.', 'Selecciona <b>C:\\Users\\<i>tú</i>\\FortniteReplays</b> y «Permitir en cada visita». Deja la pestaña abierta: cada partida se cuenta segundos después.')}</p>
+        <button class="btn" data-act="pick" ${fsa ? '' : 'disabled'}>${T('Choisir le dossier', 'Pick the folder', 'Elegir la carpeta')}</button>
+        ${fsa ? '' : `<p class="warn">${T('Ton navigateur ne peut pas suivre un dossier. Utilise Chrome ou Edge sur PC.', 'Your browser cannot watch a folder. Use Chrome or Edge on a PC.', 'Tu navegador no puede seguir una carpeta. Usa Chrome o Edge en PC.')}</p>`}
+        <span id="resumeWrap"></span></div></div>
+    </div></div>`;
+}
+
+function banners(s) {
+  const now = Date.now(), out = [];
+  for (const n of content?.notices || []) {
+    if (dismissed.includes(n.id) || now < Date.parse(n.from) || now >= Date.parse(n.to)) continue;
+    out.push(`<div class="banner info"><div class="grow"><div class="bt">${esc(n.title?.[prefs.lang] || n.title?.en)}</div><div class="bd">${esc(n.text?.[prefs.lang] || n.text?.en)}</div></div><button class="icon-btn" data-dismiss="${esc(n.id)}" aria-label="OK">✕</button></div>`);
+  }
+  const h = hours().find((h) => now < h.to);
+  if (h && h.from - now < 3 * 864e5) {
+    const on = now >= h.from;
+    const b = Object.entries(h.boosts).map(([k, v]) => `${kindName(k)} ×${N(v)}`).join(' · ');
+    out.push(`<div class="banner"><div style="font-size:1.6rem">⏳</div><div class="grow"><div class="bt">${on ? T('Heure du trésor en cours', 'Treasure Hour now', 'Hora del tesoro ahora') + ` · ${T('encore', 'for', 'quedan')} ${left(h.to)}` : T('Prochaine heure du trésor', 'Next Treasure Hour', 'Próxima hora del tesoro') + ` · ${when(h.from)} · ${T('dans', 'in', 'en')} ${left(h.from)}`}${h.confirmed ? '' : ` <span class="chip">${T('prévue', 'expected', 'prevista')}</span>`}</div><div class="bd">${esc(b)}</div></div></div>`);
+  }
+  return out.join('');
+}
+
+function welcome() {
+  if (mode !== 'exe' || prefs.welcomed) return '';
+  const seg = `<div class="seg">${[['fr', 'Français'], ['en', 'English'], ['es', 'Español']].map(([v, l]) => `<button data-set="lang" data-val="${v}" class="${prefs.lang === v ? 'on' : ''}">${l}</button>`).join('')}</div>`;
+  return `<div class="setup" style="padding:48px 0 8px"><div class="eyebrow">${T('Bienvenue', 'Welcome', 'Bienvenido')}</div><h1>${T('Coffres compte<br>pour toi.', 'Coffres counts<br>for you.', 'Coffres cuenta<br>por ti.')}</h1>
+    <p class="lead">${T('Tes replays déjà présents sont lus tout de suite. Trois choix, modifiables ensuite dans Réglages :', 'The replays already on your PC are read right away. Three choices, you can change them later in Settings:', 'Las repeticiones de tu PC se leen ya. Tres opciones, modificables en Ajustes:')}</p>
+    <div class="list" style="text-align:left">
+      <div class="set"><div class="lab"><div>${T('Langue', 'Language', 'Idioma')}</div></div>${seg}</div>
+      <div class="set"><div class="lab"><div>${T('Lancer avec Windows', 'Start with Windows', 'Iniciar con Windows')}</div><div>${T('Aucune partie oubliée, même fenêtre fermée.', 'No match missed, even with the window closed.', 'Ninguna partida olvidada, incluso con la ventana cerrada.')}</div></div><span class="switch"><input type="checkbox" data-act="autostart" ${exeState?.autostart ? 'checked' : ''}><i></i></span></div>
+      <div class="set"><div class="lab"><div>${T('Overlay dans le jeu', 'In-game overlay', 'Overlay en el juego')}</div><div>${T('Tes chiffres sous la minicarte quand Fortnite est lancé (plein écran fenêtré).', 'Your numbers under the minimap while Fortnite runs (windowed fullscreen).', 'Tus cifras bajo el minimapa con Fortnite abierto (pantalla completa en ventana).')}</div></div><span class="switch"><input type="checkbox" data-ovc="native" ${prefs.overlay.native ? 'checked' : ''}><i></i></span></div>
+    </div>
+    <button class="btn" style="margin-top:22px" data-act="welcomed">${T("C'est parti", "Let's go", '¡Vamos!')}</button></div>`;
+}
+
+function appBanners() {
+  if (mode !== 'exe' || !exeState || !prefs.welcomed) return '';
+  const out = [], u = exeState.update;
+  if (u) out.push(`<div class="banner info"><div style="font-size:1.5rem">⬆️</div><div class="grow"><div class="bt">${T('Nouvelle version', 'New version', 'Nueva versión')} ${esc(u.version)}</div><div class="bd">${esc(u.notes?.[prefs.lang] || u.notes?.en || '')}${exeState.updateError ? ` · <span style="color:var(--red)">${esc(exeState.updateError)}</span>` : ''}</div></div><button class="btn sm" data-act="install" ${exeState.updating ? 'disabled' : ''}>${exeState.updating ? T('Installation…', 'Installing…', 'Instalando…') : T('Installer', 'Install', 'Instalar')}</button></div>`);
+  if (exeState.notes && prefs.seenVersion !== exeState.version) out.push(`<div class="banner"><div style="font-size:1.5rem">✨</div><div class="grow"><div class="bt">${T('Nouveautés de la', "What's new in", 'Novedades de la')} ${esc(exeState.version)}</div><div class="bd">${esc(exeState.notes[prefs.lang] || exeState.notes.en)}</div></div><button class="icon-btn" data-act="seen" aria-label="OK">✕</button></div>`);
+  return out.join('');
+}
+
+function home(s) {
+  const exeWarn = mode === 'exe' && exeState && !exeState.folderOk ? `<div class="banner info"><div class="grow"><div class="bt">${T('Dossier de replays introuvable', 'Replays folder not found', 'Carpeta de repeticiones no encontrada')}</div><div class="bd">${esc(exeState.folder)}</div></div><a class="btn sm" href="#reglages">${T('Réglages', 'Settings', 'Ajustes')}</a></div>` : '';
+  const sessionChests = s.session.reduce((a, m) => a + m.chests, 0);
+  const recent = s.all.slice(0, 5).map(matchRow).join('');
+  const liveChests = exeState?.liveMatch?.chests || 0;
+  return `${welcome()}${appBanners()}${exeWarn}<div class="hero">
+      <div class="eyebrow">${T('Coffres ouverts', 'Chests opened', 'Cofres abiertos')}${content ? T(' · saison', ' · season', ' · temporada') : ''}${prefs.squad ? T(' · avec l\'escouade', ' · with squad', ' · con el escuadrón') : ''}</div>
+      <div class="big"><span id="total">${N(shownTotal)}</span>${live ? '<span class="live-dot" title="live"></span>' : ''}</div>
+      <p class="lead">${liveChests ? `<b>+${N(liveChests)}</b> ${T('dans la partie en cours', 'in the current match', 'en la partida actual')} · ` : ''}${s.week ? `<b>${N(s.weekChests)}</b> ${T('cette semaine', 'this week', 'esta semana')} · ` : ''}${plural(s.counted.length, 'partie', 'match', 'partida')}</p>
+    </div>
+    ${banners(s)}
+    <div class="tiles" style="margin-top:12px">
+      <div class="tile"><div class="k">${T('Dernière partie', 'Last match', 'Última partida')}</div><div class="v">${s.last ? N(s.last.chests) : '–'}</div><div class="s">${s.last ? `${esc(modeName(s.last.playlist).split(' · ')[0])}${s.last.place ? ` · top ${s.last.place}` : ''}` : T('aucune partie', 'no match yet', 'ninguna partida')}</div></div>
+      <div class="tile"><div class="k">${T('Cette session', 'This session', 'Esta sesión')}</div><div class="v">${N(sessionChests)}</div><div class="s">${plural(s.session.length, 'partie', 'match', 'partida')}</div></div>
+      <div class="tile"><div class="k">${T("Aujourd'hui", 'Today', 'Hoy')}</div><div class="v">${N(s.todayM.reduce((a, m) => a + m.chests, 0))}</div><div class="s">${plural(s.todayM.length, 'partie', 'match', 'partida')}</div></div>
+      <div class="tile"><div class="k">${T('Trésors', 'Treasures', 'Tesoros')}</div><div class="v">${N(s.treasures.length)}</div><div class="s">${s.treasures.length ? T(`1 tous les ${N(Math.round(s.total / s.treasures.length))} coffres`, `1 every ${N(Math.round(s.total / s.treasures.length))} chests`, `1 cada ${N(Math.round(s.total / s.treasures.length))} cofres`) : T('pas encore', 'none yet', 'aún ninguno')}</div></div>
+    </div>
+    ${content && s.week ? `<section><div class="h2row"><h2>${T('Cette semaine', 'This week', 'Esta semana')}</h2><a class="note" href="#chances">${T('Toutes tes chances', 'All your chances', 'Todas tus probabilidades')} →</a></div><div class="odds">${['outfit', 'pirate-shop'].map((k) => oddCard(k, s)).join('')}</div></section>` : ''}
+    <section><div class="h2row"><h2>${T('Activité', 'Activity', 'Actividad')}</h2><a class="note" href="#parties">${T('Toutes les parties', 'All matches', 'Todas las partidas')} →</a></div>
+      <div class="list">${recent || `<div class="empty">${qTotal ? T('Analyse des replays…', 'Reading replays…', 'Leyendo repeticiones…') : T('Aucune partie pour l\'instant. Lance une partie : elle apparaît ici quelques secondes après la fin.', 'No match yet. Play one: it shows up here a few seconds after it ends.', 'Aún no hay partidas. Juega una: aparece aquí segundos después.')}`}</div></div></section>`;
+}
+
+function weeklyFor(kind, s) {
+  const o = oddsOf(kind); if (!o) return null;
+  const c = o.weekly ? chance(o, s.weekTimes, s.weekManual) : (s.manualSum >= 0 ? chance(o, s.times, s.manualSum) : chance(o, [], Math.max(0, s.times.length + s.manualSum)));
+  const prize = o.weekly ? s.week?.prizes.find((p) => p.kind === kind || (kind === 'pickaxe' && p.kind === 'backbling')) : kind === 'pirate-shop' ? content.pirateShop : null;
+  return { o, c, prize };
+}
+function oddCard(kind, s) {
+  const r = weeklyFor(kind, s); if (!r) return '';
+  const { o, c, prize } = r, [cls, word] = verdict(c.p);
+  return `<div class="odd">${img(prize, 'thumb', kind)}<div class="meta">
+    <div class="kind">${esc(kindName(kind))}${owned(prize, s) ? `<span class="chip got">✓ ${T('Obtenu', 'Got it', 'Conseguido')}</span>` : ''}</div>
+    <div class="name">${esc(prize?.name || (kind === 'gizmo' ? T('Fusées, extracteurs, localisateurs…', 'Fireworks, extractors, locators…', 'Fuegos, extractores, localizadores…') : T('Pas encore annoncé', 'Not announced yet', 'Aún no anunciado')))}</div>
+    <div class="cbar"><i class="${cls}" style="width:${Math.max(c.p * 100, 0.8)}%"></i></div>
+    <div class="line"><span>1 ${T('sur', 'in', 'entre')} ${N(o.oneIn)} · ${N(c.n)} ${T('coffres', 'chests', 'cofres')} ${o.weekly ? T('cette semaine', 'this week', 'esta semana') : T('cette saison', 'this season', 'esta temporada')} <span class="chip ${cls}">${word}</span></span><span class="pct${c.boosted ? ' boost' : ''}">${pct(c.p)}</span></div></div></div>`;
+}
+
+function chancesPage(s) {
+  if (!content) return `<div class="head"><h1>${T('Tes chances', 'Your chances', 'Tus probabilidades')}</h1><p>${T('Chargement des données de la chasse…', 'Loading the hunt data…', 'Cargando los datos de la búsqueda…')}</p></div>`;
+  const now = Date.now(), wk = s.week;
+  const seasonPace = s.times.length ? s.times.length / Math.max(1, (now - s.times[0]) / 864e5) : 0;
+  let weekPace = wk ? (s.weekTimes.length + s.weekManual) / Math.max(1, (now - wk.from) / 864e5) : 0;
+  if (!(weekPace > 0)) weekPace = seasonPace;
+  const projection = (o, c, weekly) => {
+    const end = weekly ? wk?.to ?? now : huntEnd(), pace = weekly ? weekPace : seasonPace;
+    if (pace <= 0 || now >= end || c.p >= 0.75) return '';
+    const p = -Math.expm1(c.log + pace * (end - now) / 864e5 * Math.log1p(-1 / o.oneIn));
+    return `≈ ${pct(p)} ${weekly ? T("d'ici la fin de la semaine à ton rythme", 'by the end of the week at your pace', 'al final de la semana a tu ritmo') : T("d'ici la fin de la chasse à ton rythme", 'by the end of the hunt at your pace', 'al final de la búsqueda a tu ritmo')}`;
+  };
+  const feat = (kind) => {
+    const r = weeklyFor(kind, s); if (!r) return '';
+    const { o, c, prize } = r, [cls, word] = verdict(c.p), half = chestsFor(o.oneIn, 0.5);
+    const allWeeks = kind === 'outfit' ? chance(o, s.times, Math.max(0, s.manualSum)) : null;
+    const lines = [
+      `${T('Chaque coffre', 'Each chest', 'Cada cofre')} : 1 ${T('sur', 'in', 'entre')} ${N(o.oneIn)} · ${N(c.n)} ${T('coffres', 'chests', 'cofres')} ${o.weekly ? T('cette semaine', 'this week', 'esta semana') : T('cette saison', 'this season', 'esta temporada')}${c.p > 0 ? ` · ${T('environ 1 sur', 'about 1 in', 'aprox. 1 entre')} ${N(Math.max(1, Math.round(1 / c.p)))}` : ''}`,
+      allWeeks ? `${T('Toutes les semaines réunies', 'All weeks combined', 'Todas las semanas')} : <b>${pct(allWeeks.p)}</b> ${T('sur', 'over', 'en')} ${N(allWeeks.n)} ${T('coffres', 'chests', 'cofres')}` : '',
+      o.weekly && wk ? `${T('Cette tenue part dans', 'This outfit leaves in', 'Este atuendo se va en')} ${left(wk.to)}` : '',
+      projection(o, c, o.weekly),
+    ].filter(Boolean).map((l) => `<div>${l}</div>`).join('');
+    const prog = Math.min(100, c.n / half * 100);
+    return `<div class="feat${kind === 'outfit' ? ' gold' : ''}"><div class="top">${img(prize, 'thumb', kind)}<div style="min-width:0"><div class="kind">${esc(kindName(kind))} <span class="chip ${o.weekly ? 'weekly' : ''}">${o.weekly ? T('Hebdo', 'Weekly', 'Semanal') : T('Saison', 'Season', 'Temporada')}</span>${owned(prize, s) ? `<span class="chip got">✓ ${T('Obtenu', 'Got it', 'Conseguido')}</span>` : ''}</div><div class="name">${esc(prize?.name || T('Pas encore annoncé', 'Not announced yet', 'Aún no anunciado'))}</div></div></div>
+      <div class="p"><span class="${c.boosted ? 'pct boost' : ''}" style="font-size:inherit">${pct(c.p)}</span><span class="chip ${cls}">${word}</span></div>
+      <div class="note" style="margin-top:4px">${o.weekly ? T("chance qu'elle soit tombée pour toi cette semaine", 'chance it dropped for you this week', 'probabilidad de que te haya tocado esta semana') : T("chance qu'il soit tombé pour toi cette saison", 'chance it dropped for you this season', 'probabilidad de que te haya tocado esta temporada')}</div>
+      <div class="cbar" style="margin-top:14px"><i class="${cls}" style="width:${Math.max(prog, 0.8)}%"></i></div>
+      <div class="line"><span>${T('Vers une chance sur deux', 'Halfway to a 50/50 chance', 'Hacia un 50 %')}</span><span>${N(c.n)} / ${N(half)} ${T('coffres', 'chests', 'cofres')}</span></div>
+      <div class="lines">${lines}</div></div>`;
+  };
+  const weeklyRows = ['car', 'pickaxe', 'jam', 'loading', 'gizmo'].map((k) => {
+    const r = weeklyFor(k, s); if (!r) return '';
+    const { o, c, prize } = r, [cls, word] = verdict(c.p);
+    return `<div class="row"><div style="display:flex;gap:12px;align-items:center;min-width:0">${img(prize, 'thumb', k).replace('class="thumb', 'style="width:44px;height:44px;border-radius:10px" class="thumb')}<div style="min-width:0"><div class="t">${esc(kindName(k))} ${owned(prize, s) ? `<span class="chip got">✓</span>` : ''}</div><div class="d">${esc(prize?.name || (k === 'gizmo' ? T('Toute la chasse', 'Whole hunt', 'Toda la búsqueda') : '—'))} · 1 ${T('sur', 'in', 'entre')} ${N(o.oneIn)}</div><div class="cbar" style="margin:6px 0 0;width:min(260px,40vw)"><i class="${cls}" style="width:${Math.max(c.p * 100, 0.8)}%"></i></div></div></div>
+      <div class="n"><span class="${c.boosted ? 'pct boost' : ''}" style="font-size:inherit">${pct(c.p)}</span><small><span class="chip ${cls}">${word}</span> · ≈ ${N(c.exp, { maximumFractionDigits: c.exp < 10 ? 1 : 0 })} ${T('attendu', 'expected', 'esperado')}</small></div></div>`;
+  }).join('');
+  return `<div class="head"><h1>${T('Tes chances', 'Your chances', 'Tus probabilidades')}</h1><p>${T("Chaque coffre est un nouveau tirage : tes chances ne s'accumulent pas. Ces chiffres montrent la chance qu'un trésor soit déjà tombé pour toi au moins une fois.", "Every chest is a fresh roll: your odds don't build up. These numbers show the chance a treasure already dropped for you at least once.", 'Cada cofre es una tirada nueva: tus probabilidades no se acumulan. Estas cifras muestran la probabilidad de que un tesoro ya te haya tocado al menos una vez.')}</p></div>
+    ${banners(s)}
+    <div class="feature">${feat('outfit')}${feat('pirate-shop')}</div>
+    <section><div class="h2row"><h2>${wk ? `${T('Semaine', 'Week', 'Semana')} ${wk.number} · ${esc(wk.title)}` : T('Hors chasse', 'No hunt', 'Sin búsqueda')}</h2><div class="note">${wk ? `${N(s.weekChests)} ${T('coffres cette semaine', 'chests this week', 'cofres esta semana')} · ${now < wk.to ? T('se termine dans', 'ends in', 'termina en') + ' ' + left(wk.to) : T('terminée', 'over', 'terminada')}` : ''}</div></div>
+      <div class="list">${weeklyRows}</div></section>
+    <section><div class="card prose" style="display:block"><h3>${T('Comment c\'est calculé ?', 'How is this calculated?', '¿Cómo se calcula?')}</h3>
+      <p>${T('Chance d\'avoir eu un trésor au moins une fois = 1 − (1 − 1/N)<sup>coffres</sup>, avec les cotes publiées par Epic. Un coffre ne donne que le trésor de sa semaine : les trésors hebdo comptent les coffres de la semaine, l\'accès à la boutique pirate et les gadgets comptent toute la chasse. Pendant une heure du trésor, chaque coffre compte avec sa cote augmentée (en orange). Les coffres ajoutés à la main comptent avec la cote normale.', 'Chance of at least one treasure = 1 − (1 − 1/N)<sup>chests</sup>, with the odds published by Epic. A chest only gives its week\'s treasure: weekly treasures count this week\'s chests, Pirate Shop Access and gizmos count the whole hunt. During a Treasure Hour, each chest counts with its boosted odds (orange). Chests added by hand count with normal odds.', 'Probabilidad de al menos un tesoro = 1 − (1 − 1/N)<sup>cofres</sup>, con las probabilidades publicadas por Epic. Un cofre solo da el tesoro de su semana. Durante una hora del tesoro, cada cofre cuenta con su probabilidad aumentada (en naranja).')}</p></div></section>`;
+}
+
+function matchRow(m) {
+  const open = expanded.has(m.file);
+  const kinds = Object.entries(m.list.reduce((a, c) => (a[c.k + (c.d ? '|d' : '')] = (a[c.k + (c.d ? '|d' : '')] || 0) + 1, a), {}));
+  const detail = open ? `<div class="detail">
+      <div><b>${T('Coffres', 'Chests', 'Cofres')}</b><ul>${kinds.map(([k, n]) => { const [kk, d] = k.split('|'); return `<li>${n} × ${esc(chestName(kk))}${d ? ` (${T('détruit', 'destroyed', 'destruido')})` : ''}</li>`; }).join('') || '<li>—</li>'}</ul></div>
+      <div><b>${T('Trésors', 'Treasures', 'Tesoros')}</b><ul>${m.treasures.map((t) => `<li>★ ${esc(prizeFor(t.p)?.name || t.n)}${t.t != null ? ` · ${mmss(t.t)}` : ''}${t.chest === false ? ' ⚑' : ''}</li>`).join('') || '<li>—</li>'}</ul></div>
+      ${m.mates?.length ? `<div><b>${T('Escouade', 'Squad', 'Escuadrón')}</b><ul>${m.mates.map((x) => `<li>${esc(x.n || '?')}${x.bot ? ' (bot)' : ''} · ${x.c} ${T('coffres', 'chests', 'cofres')}</li>`).join('')}</ul></div>` : ''}
+      <div><b>${T('Partie', 'Match', 'Partida')}</b><ul>${m.dur ? `<li>${mmss(m.dur)}</li>` : ''}${m.vehM ? `<li>🚗 ${N(m.vehM / 1000, { maximumFractionDigits: 1 })} km · ${mmss(m.vehSec)}</li>` : ''}${m.vehMissing ? `<li>⚠️ ${T('des coffres cassés en véhicule manquent peut-être', 'chests broken by vehicle may be missing', 'pueden faltar cofres rotos con vehículo')}</li>` : ''}${m.why ? `<li>${esc(m.why)}</li>` : ''}<li style="opacity:.6">${esc(m.file)}</li></ul></div>
+    </div>` : '';
+  return `<div class="row click${m.counts ? '' : ' off'}" data-match="${esc(m.file)}"><div style="min-width:0"><div class="t">${esc(modeName(m.playlist))}</div><div class="d">${when(m.st)}${m.place ? ` · top ${m.place}` : ''}${m.kills != null ? ` · ${m.kills} ${T('élim.', 'elims', 'elim.')}` : ''}${m.treasures.length ? ` · ★ ${m.treasures.length}` : ''}${m.counts ? '' : ` · ${T('ne compte pas', "doesn't count", 'no cuenta')}`}</div></div><div class="n">${N(m.chests)}<small>${T('coffres', 'chests', 'cofres')}</small></div>${detail}</div>`;
+}
+
+function matchesPage(s) {
+  const list = (prefs.showOff ? s.all : s.counted);
+  const errors = Object.values(matches).filter((m) => m.error).length;
+  return `<div class="head"><h1>${T('Parties', 'Matches', 'Partidas')}</h1><p>${T('Seules les parties Battle Royale classiques sur la carte de la saison comptent. Touche une partie pour le détail.', 'Only regular Battle Royale matches on the season map count. Tap a match for details.', 'Solo cuentan las partidas Battle Royale normales en el mapa de la temporada. Toca una partida para ver el detalle.')}</p></div>
+    <section><div class="h2row"><h2>${plural(list.length, 'partie', 'match', 'partida')}</h2><label class="note" style="display:flex;gap:10px;align-items:center">${T('Afficher celles qui ne comptent pas', "Show those that don't count", 'Mostrar las que no cuentan')}<span class="switch"><input type="checkbox" data-pref="showOff" ${prefs.showOff ? 'checked' : ''}><i></i></span></label></div>
+    <div class="list">${list.slice(0, limits.matches).map(matchRow).join('') || `<div class="empty">${T('Aucune partie.', 'No match.', 'Ninguna partida.')}</div>`}${list.length > limits.matches ? `<button class="more" data-more="matches">${T('Afficher plus', 'Show more', 'Mostrar más')}</button>` : ''}</div>
+    ${errors ? `<p class="note" style="margin-top:10px">${T(`${errors} replay(s) illisible(s)`, `${errors} unreadable replay(s)`, `${errors} repetición(es) ilegible(s)`)} ${T('(abîmé, partie interrompue ou version de Fortnite pas encore gérée).', '(damaged, interrupted match or a Fortnite version not supported yet).', '(dañada, partida interrumpida o versión no compatible aún).')}</p>` : ''}</section>`;
+}
+
+function report(s) {
+  const total = s.total + (prefs.squad ? s.teamChests : 0);
+  const avg = s.counted.length ? s.counted.reduce((a, m) => a + m.chests + (prefs.squad ? m.teamChests || 0 : 0), 0) / s.counted.length : 0;
+  const perDay = {};
+  for (const m of s.counted) perDay[dayKey(m.st)] = (perDay[dayKey(m.st)] || 0) + m.chests + (prefs.squad ? m.teamChests || 0 : 0);
+  const first = Math.min(s.counted.length ? Math.max(s.counted.at(-1).st, Date.now() - 59 * 864e5) : Date.now(), Date.now() - 29 * 864e5);
+  const days = []; for (let t = first; dayKey(t) <= dayKey(Date.now()); t += 864e5) days.push(dayKey(t));
+  const max = Math.max(1, ...days.map((d) => perDay[d] || 0));
+  const bestDay = days.reduce((b, d) => ((perDay[d] || 0) > (perDay[b] || 0) ? d : b), days[0]);
+  const W = days.length * 12;
+  const chart = `<svg viewBox="0 0 ${W} 100" preserveAspectRatio="none" role="img" aria-label="${T('Coffres par jour', 'Chests per day', 'Cofres por día')}">${days.map((d, i) => { const v = perDay[d] || 0, h = v ? Math.max(2, v / max * 96) : 1; return `<rect x="${i * 12 + 2}" y="${100 - h}" width="8" height="${h}" rx="2" fill="${d === bestDay && v ? 'var(--orange)' : v ? 'var(--gold2)' : 'var(--track)'}"><title>${d} · ${v}</title></rect>`; }).join('')}</svg>`;
+  const byKind = {};
+  for (const m of s.counted) for (const c of m.list) if (isChestKind(c.k)) byKind[c.k] = (byKind[c.k] || 0) + 1;
+  const kinds = Object.entries(byKind).sort((a, b) => b[1] - a[1]); const kmax = Math.max(1, ...kinds.map((k) => k[1]));
+  const bySrc = {};
+  for (const t of s.treasures) { const k = (t.g ? 'Coffre doré' : t.src || 'inconnu') + (t.dest ? '|d' : ''); bySrc[k] = (bySrc[k] || 0) + 1; }
+  const others = {};
+  for (const m of s.counted) for (const [k, v] of Object.entries(m.other || {})) others[k] = (others[k] || 0) + v;
+  const veh = s.counted.reduce((a, m) => [a[0] + (m.vehSec || 0), a[1] + (m.vehM || 0), a[2] + (m.vehMissing ? 1 : 0)], [0, 0, 0]);
+  const seen = s.all.flatMap((m) => (m.seen || []).map((x) => ({ ...x, prize: prizeFor(x.p), st: m.st }))).filter((x) => ['outfit', 'pirate-shop'].includes(x.prize?.kind));
+  const treasureList = (prefs.teamTreasures ? [...s.treasures, ...s.teamTreasures] : s.treasures).sort((a, b) => b.st - a.st);
+  const hb = (label, n, mx) => `<div class="hbar"><span>${label}</span><span class="b"><i style="width:${n / mx * 100}%"></i></span><span class="c">${N(n)}</span></div>`;
+  return `<div class="head"><h1>${T('Rapport', 'Report', 'Informe')}</h1><p>${T('Tout ce que tes replays racontent, mis à jour après chaque partie.', 'Everything your replays tell, updated after each match.', 'Todo lo que cuentan tus repeticiones, actualizado tras cada partida.')}</p></div>
+    <div class="tiles five">
+      <div class="tile hl"><div class="k">${T('Coffres au total', 'Chests in total', 'Cofres en total')}</div><div class="v">${N(total)}</div><div class="s">${s.manualSum ? `${s.manualSum > 0 ? '+' : ''}${N(s.manualSum)} ${T('à la main', 'by hand', 'a mano')}` : T('ouverts ou détruits par toi', 'opened or destroyed by you', 'abiertos o destruidos por ti')}</div><button class="icon-btn" data-act="manual" aria-label="${T('Modifier', 'Edit', 'Editar')}">${ICON.pencil}</button></div>
+      <div class="tile"><div class="k">${T('Parties', 'Matches', 'Partidas')}</div><div class="v">${N(s.counted.length)}</div><div class="s">${T('analysées', 'analyzed', 'analizadas')}</div></div>
+      <div class="tile"><div class="k">${T('Moyenne', 'Average', 'Media')}</div><div class="v">${s.counted.length ? N(avg, { maximumFractionDigits: 1 }) : '–'}</div><div class="s">${T('par partie', 'per match', 'por partida')}</div></div>
+      <div class="tile"><div class="k">${T('Meilleure partie', 'Best match', 'Mejor partida')}</div><div class="v">${s.best ? N(s.best.chests) : '–'}</div><div class="s">${s.best ? day(s.best.st) : ''}</div></div>
+      <div class="tile"><div class="k">${T('Trésors', 'Treasures', 'Tesoros')}</div><div class="v">${N(s.treasures.length)}</div><div class="s">${s.treasures.length ? `1 / ${N(Math.round(s.total / s.treasures.length))} ${T('coffres', 'chests', 'cofres')}` : '—'}${s.teamTreasures.length ? ` · +${s.teamTreasures.length} ${T('équipe', 'team', 'equipo')}` : ''}</div></div>
+    </div>
+    <label class="note" style="display:flex;gap:10px;align-items:center;justify-content:flex-end;margin:-36px 0 40px">${T("Ajouter le total de l'escouade", 'Add the squad total', 'Añadir el total del escuadrón')} <span class="chip possible">${T('inexact', 'inaccurate', 'inexacto')}</span><span class="switch"><input type="checkbox" data-pref="squad" ${prefs.squad ? 'checked' : ''}><i></i></span></label>
+    <section><div class="h2row"><h2>${T('Coffres par jour', 'Chests per day', 'Cofres por día')}</h2><div class="note">${perDay[bestDay] ? `${T('meilleur jour', 'best day', 'mejor día')} : ${day(Date.parse(bestDay))} · ${N(perDay[bestDay])}` : ''}</div></div>
+      <div class="card chart">${chart}<div class="axis"><span>${days[0] ? day(Date.parse(days[0])) : ''}</span><span>${T("aujourd'hui", 'today', 'hoy')}</span></div></div></section>
+    <div class="grid2" style="margin-bottom:56px">
+      <div><h2 style="margin-bottom:16px">${T('Par type de coffre', 'By chest type', 'Por tipo de cofre')}</h2><div class="card">${kinds.map(([k, n]) => hb(esc(chestName(k)), n, kmax)).join('') || `<div class="note">—</div>`}
+        ${Object.keys(others).length ? `<div class="note" style="margin-top:12px">${T('Aussi', 'Also', 'También')} : ${Object.entries(others).map(([k, v]) => `${N(v)} × ${esc(chestName(k).toLowerCase())}`).join(' · ')}</div>` : ''}</div></div>
+      <div><h2 style="margin-bottom:16px">${T("D'où viennent tes trésors", 'Where your treasures come from', 'De dónde vienen tus tesoros')}</h2><div class="card">${Object.entries(bySrc).sort((a, b) => b[1] - a[1]).map(([k, n]) => { const [kk, d] = k.split('|'); return hb(esc(chestName(kk)) + (d ? ` (${T('détruit', 'destroyed', 'destruido')})` : ''), n, Math.max(...Object.values(bySrc))); }).join('') || `<div class="note">${T('Pas encore de trésor.', 'No treasure yet.', 'Aún no hay tesoros.')}</div>`}
+        ${veh[1] ? `<div class="note" style="margin-top:12px">🚗 ${N(veh[1] / 1000, { maximumFractionDigits: 1 })} km ${T('en véhicule', 'in vehicles', 'en vehículo')} · ${N(Math.round(veh[0] / 60))} min${veh[2] ? ` · ⚠️ ${veh[2]} ${T('parties avec des coffres peut-être manquants', 'matches with possibly missing chests', 'partidas con cofres quizá perdidos')}` : ''}</div>` : ''}</div></div>
+    </div>
+    <section><div class="h2row"><h2>${T('Trésors trouvés', 'Treasures found', 'Tesoros encontrados')}</h2><label class="note" style="display:flex;gap:10px;align-items:center">${T("Trésors de l'équipe", 'Team treasures', 'Tesoros del equipo')}<span class="switch"><input type="checkbox" data-pref="teamTreasures" ${prefs.teamTreasures ? 'checked' : ''}><i></i></span></label></div>
+      <div class="list">${treasureList.slice(0, limits.treasures).map((t) => { const p = prizeFor(t.p); return `<div class="row"><div style="display:flex;gap:12px;align-items:center;min-width:0">${p ? img(p, 'thumb').replace('class="thumb', 'style="width:40px;height:40px;border-radius:9px" class="thumb') : ''}<div style="min-width:0"><div class="t">${t.isTeam ? '👥 ' : ''}${esc(p?.name || t.n)}${t.chest === false ? ` <span class="chip" title="${T('fiabilité faible', 'low reliability', 'fiabilidad baja')}">⚑</span>` : ''}</div><div class="d">${esc(p ? kindName(p.kind) : chestName(t.g ? 'Coffre doré' : t.src || 'inconnu'))}${t.isTeam && t.mate ? ` · ${esc(t.mate)}` : ''} · ${when(t.st)}</div></div></div><div class="n">${t.g ? '★★' : '★'}</div></div>`; }).join('') || `<div class="empty">${T('Pas encore de trésor.', 'No treasure yet.', 'Aún no hay tesoros.')}</div>`}${treasureList.length > limits.treasures ? `<button class="more" data-more="treasures">${T('Afficher plus', 'Show more', 'Mostrar más')}</button>` : ''}</div></section>
+    <section><div class="h2row"><h2>${T('Ils l\'ont eu dans tes parties', 'They got it in your matches', 'Lo consiguieron en tus partidas')}</h2><div class="note">${T('expérimental', 'experimental', 'experimental')}</div></div>
+      <div class="list">${seen.map((x) => `<div class="row"><div><div class="t">${esc(x.who || '?')}</div><div class="d">${esc(x.prize.name)} · ${when(x.st + x.t * 1000)}</div></div><div class="n">${x.prize.kind === 'outfit' ? '👑' : '🏴‍☠️'}</div></div>`).join('') || `<div class="empty">${T('Personne près de toi n\'a eu de tenue en or ni d\'accès à la boutique pirate.', 'Nobody near you got a gold outfit or Pirate Shop Access.', 'Nadie cerca de ti consiguió un atuendo dorado ni acceso a la tienda pirata.')}</div>`}</div></section>`;
+}
+
+function collectionPage(s) {
+  if (!content) return `<div class="head"><h1>Collection</h1><p>${T('Chargement…', 'Loading…', 'Cargando…')}</p></div>`;
+  const now = Date.now();
+  const card = (p) => `<button class="prize${owned(p, s) ? ' got' : ''}" data-prize="${esc(p.id)}">${img(p, '')}<div class="kind" style="margin-top:8px">${esc(kindName(p.kind))}</div><div class="name">${esc(p.name)}</div><span class="check">${ICON.check}</span></button>`;
+  const ws = weeks().filter((w) => w.prizes.length || w.from <= now);
+  const total = allPrizes().length, have = allPrizes().filter((p) => owned(p, s)).length;
+  return `<div class="head"><h1>${T('Ta collection', 'Your collection', 'Tu colección')}</h1><p>${T(`${have} sur ${total} trésors. Un trésor de coffre doré vu dans tes replays se coche tout seul ; touche une carte pour cocher ou décocher.`, `${have} of ${total} treasures. A golden chest treasure seen in your replays is ticked by itself; tap a card to tick or untick it.`, `${have} de ${total} tesoros. Un tesoro de cofre dorado visto en tus repeticiones se marca solo; toca una carta para marcarla.`)}</p></div>
+    <section><div class="h2row"><h2>${T('Toute la saison', 'Whole season', 'Toda la temporada')}</h2></div><div class="coll">${card(content.pirateShop)}</div></section>
+    ${ws.map((w) => `<section><div class="h2row"><h2>${T('Semaine', 'Week', 'Semana')} ${w.number} · ${esc(w.title)}</h2><div class="note">${now < w.from ? T('à venir', 'upcoming', 'próximamente') : now < w.to ? `${T('en cours · se termine dans', 'now · ends in', 'en curso · termina en')} ${left(w.to)}` : `${day(w.from)} – ${day(w.to)}`}</div></div>
+      <div class="coll">${w.prizes.map(card).join('') || `<div class="note">${T('Trésors pas encore annoncés.', 'Treasures not announced yet.', 'Tesoros aún no anunciados.')}</div>`}</div></section>`).join('')}`;
+}
+
+function overlayModel(s) {
+  const o = prefs.overlay;
+  return { total: s.total + (prefs.squad ? s.teamChests : 0), last: s.last?.chests ?? 0, session: s.session.reduce((a, m) => a + m.chests, 0), treasures: s.treasures.length, week: s.weekChests, squad: s.total + s.teamChests, live, o };
+}
+function overlayHTML(v, o = prefs.overlay) {
+  const card = o.style === 'card';
+  return `<div class="ov ${card ? 'card' : 'hud'}" style="font-size:${16 * o.size}px;opacity:${o.opacity}">
+    <div class="ot">${ICON.chest}<span>${N(v.total)}</span>${v.live ? '<span class="od"></span>' : ''}</div>
+    <div class="ol"><span><small>${T('Dern.', 'Last', 'Últ.')}</small>${N(v.last)}</span><span><small>${T('Session', 'Session', 'Sesión')}</small>${N(v.session)}</span><span><small>★</small>${N(v.treasures)}</span>${card ? `<span><small>${T('Sem.', 'Week', 'Sem.')}</small>${N(v.week)}</span>` : ''}</div>
+    ${o.squad ? `<div class="osq">${T('Escouade', 'Squad', 'Escuadrón')} ${N(v.squad)}</div>` : ''}</div>`;
+}
+function renderOverlays(s) {
+  const v = overlayModel(s);
+  const prev = $('ovPreview'); if (prev) prev.innerHTML = overlayHTML(v);
+  if (document.body.classList.contains('obs')) $('obsRoot').innerHTML = overlayHTML(v, obsOpts);
+  if (pip) { pip.document.body.innerHTML = overlayHTML(v); pip.document.body.className = prefs.overlay.style; }
+}
+function obsUrl() { const o = prefs.overlay; return `${location.origin}/?obs=1&style=${o.style}&size=${o.size}&opacity=${o.opacity}&squad=${o.squad ? 1 : 0}&lang=${prefs.lang}`; }
+async function openPip() {
+  if (pip) return pip.close();
+  pip = await documentPictureInPicture.requestWindow({ width: prefs.overlay.style === 'card' ? 320 : 260, height: prefs.overlay.style === 'card' ? 170 : 130 });
+  pip.document.head.innerHTML = `<title>Coffres</title><style>${[...document.styleSheets[0].cssRules].filter((r) => /\.ov|:root/.test(r.selectorText || '')).map((r) => r.cssText).join('\n')}
+    body{margin:0;height:100vh;display:grid;place-items:center;background:#0b0b0c;overflow:hidden} body.hud{background:linear-gradient(135deg,#2c4a63,#4c6b45)}</style>`;
+  pip.addEventListener('pagehide', () => { pip = null; render(); });
+  renderOverlays(stats()); render();
+}
+
+function nativeOverlayRows() {
+  const o = prefs.overlay, st = exeState?.overlay || {};
+  return `<div class="set"><div class="lab"><div>${T('Overlay dans le jeu', 'In-game overlay', 'Overlay en el juego')}</div><div>${T('Juste les chiffres, comme le HUD. Fortnite doit être en « Plein écran fenêtré » : en plein écran exclusif, Windows ne peut rien dessiner par-dessus.', 'Just the numbers, like the HUD. Fortnite must be in "Windowed Fullscreen": in exclusive fullscreen, Windows cannot draw over the game.', 'Solo las cifras, como el HUD. Fortnite debe estar en «Pantalla completa en ventana».')}</div></div><span class="switch"><input type="checkbox" data-ovc="native" ${o.native ? 'checked' : ''}><i></i></span></div>
+    <div class="set"><div class="lab"><div>${T('Seulement quand Fortnite est lancé', 'Only while Fortnite runs', 'Solo con Fortnite abierto')}</div></div><span class="switch"><input type="checkbox" data-ovc="onlyGame" ${o.onlyGame ? 'checked' : ''}><i></i></span></div>
+    <div class="set"><div class="lab"><div>${st.running ? (st.visible ? T('Affiché', 'Shown', 'Visible') : T('Masqué', 'Hidden', 'Oculto')) + ' · ' + (st.locked ? T('verrouillé', 'locked', 'bloqueado') : T('déverrouillé', 'unlocked', 'desbloqueado')) : T("Fermé pour l'instant", 'Closed for now', 'Cerrado por ahora')}</div><div>${T('<b>Ctrl+Maj+O</b> : afficher / masquer, partout, même en jeu. <b>Ctrl+Maj+L</b> : verrouiller (la souris passe au travers) / déverrouiller (fond visible, clic gauche maintenu pour le déplacer, clic droit pour le masquer).', '<b>Ctrl+Shift+O</b>: show / hide, anywhere, even in game. <b>Ctrl+Shift+L</b>: lock (the mouse goes through) / unlock (background shows, hold left click to move it, right-click to hide it).', '<b>Ctrl+Mayús+O</b>: mostrar / ocultar. <b>Ctrl+Mayús+L</b>: bloquear / desbloquear (mantén clic izquierdo para moverlo).')}</div>
+${st.running && !st.hotkeys ? `<div style="color:var(--orange)">${T('Ctrl+Maj+O est déjà pris par une autre appli : utilise les boutons ou l\'icône près de l\'horloge.', 'Ctrl+Shift+O is already used by another app: use the buttons or the icon next to the clock.', 'Ctrl+Mayús+O ya lo usa otra app: usa los botones o el icono junto al reloj.')}</div>` : ''}</div>
+      <div style="display:flex;gap:8px;flex:none"><button class="btn ghost sm" data-act="ovToggle" ${st.running ? '' : 'disabled'}>${st.visible ? T('Masquer', 'Hide', 'Ocultar') : T('Afficher', 'Show', 'Mostrar')}</button><button class="btn ghost sm" data-act="ovLock" ${st.running ? '' : 'disabled'}>${st.locked ? T('Déverrouiller', 'Unlock', 'Desbloquear') : T('Verrouiller', 'Lock', 'Bloquear')}</button></div></div>`;
+}
+
+function overlayPage(s) {
+  const o = prefs.overlay, hasPip = 'documentPictureInPicture' in window;
+  const seg = (key, opts) => `<div class="seg">${opts.map(([v, l]) => `<button data-ov="${key}" data-val="${v}" class="${String(o[key]) === String(v) ? 'on' : ''}">${l}</button>`).join('')}</div>`;
+  return `<div class="head"><h1>Overlay</h1><p>${T('Tes chiffres par-dessus le jeu, et une page pour OBS.', 'Your numbers over the game, and a page for OBS.', 'Tus cifras sobre el juego y una página para OBS.')}</p></div>
+    <div class="ov-stage"><div id="ovPreview"></div></div>
+    <div class="settings">
+      <div class="group"><h3>${T('Dans le jeu', 'In game', 'En el juego')}</h3><div class="list">
+        ${mode === 'exe' ? nativeOverlayRows() : `<div class="set"><div class="lab"><div>${T('Mini-fenêtre toujours au-dessus', 'Always-on-top mini window', 'Minivent. siempre encima')}</div><div>${T("Place-la sous la minicarte. Fortnite doit être en « Plein écran fenêtré ». L'appli Windows a un vrai overlay qui laisse passer les clics.", 'Put it under the minimap. Fortnite must be in "Windowed Fullscreen". The Windows app has a real click-through overlay.', 'Ponla bajo el minimapa. Fortnite debe estar en «Pantalla completa en ventana». La app de Windows tiene un overlay real.')}</div></div>
+          <button class="btn sm" data-act="pip" ${hasPip ? '' : 'disabled'}>${pip ? T('Fermer', 'Close', 'Cerrar') : T('Ouvrir', 'Open', 'Abrir')}</button></div>
+        ${hasPip ? '' : `<div class="set"><div class="lab"><div class="note">${T('Ton navigateur ne gère pas la mini-fenêtre (Chrome ou Edge 116+).', 'Your browser has no mini window (Chrome or Edge 116+).', 'Tu navegador no tiene minivent. (Chrome o Edge 116+).')}</div></div></div>`}`}
+        <div class="set"><div class="lab"><div>Style</div><div>${T('HUD : juste les chiffres, comme le jeu. Carte : fond sombre, plus de détails.', 'HUD: just the numbers, like the game. Card: dark background, more details.', 'HUD: solo cifras, como el juego. Tarjeta: fondo oscuro, más detalles.')}</div></div>${seg('style', [['hud', 'HUD'], ['card', T('Carte', 'Card', 'Tarjeta')]])}</div>
+        <div class="set"><div class="lab"><div>${T('Taille', 'Size', 'Tamaño')}</div></div><input type="range" min="0.6" max="1.6" step="0.1" value="${o.size}" data-ovr="size"></div>
+        <div class="set"><div class="lab"><div>${T('Opacité', 'Opacity', 'Opacidad')}</div></div><input type="range" min="0.3" max="1" step="0.05" value="${o.opacity}" data-ovr="opacity"></div>
+        <div class="set"><div class="lab"><div>${T("Total de l'escouade", 'Squad total', 'Total del escuadrón')}</div><div>${T('Tes coffres + ceux de tes coéquipiers. Inexact : un coffre ouvert à plus de 150 m de toi n\'est pas dans tes replays.', 'Your chests + your teammates\'. Inaccurate: a chest opened more than 150 m away is not in your replays.', 'Tus cofres + los de tus compañeros. Inexacto: un cofre abierto a más de 150 m no está en tus repeticiones.')}</div></div><span class="switch"><input type="checkbox" data-ovc="squad" ${o.squad ? 'checked' : ''}><i></i></span></div>
+      </div></div>
+      <div class="group"><h3>${T('Streaming (OBS)', 'Streaming (OBS)', 'Streaming (OBS)')}</h3><div class="list"><div class="set" style="display:block">
+        ${mode === 'exe' ? `<div class="lab"><div>${T('Source navigateur', 'Browser source', 'Fuente de navegador')}</div><div>${T('OBS : Sources → + → Navigateur, colle cette adresse, largeur 360 × hauteur 220 (450 × 300 en style carte). Fond transparent, mis à jour toutes les 5 secondes.', 'OBS: Sources → + → Browser, paste this URL, width 360 × height 220 (450 × 300 for card style). Transparent background, refreshed every 5 seconds.', 'OBS: Fuentes → + → Navegador, pega esta URL, 360 × 220 (450 × 300 en estilo tarjeta). Fondo transparente, se actualiza cada 5 s.')}</div></div>
+          <div class="code"><code id="obsUrl">${esc(obsUrl())}</code><button class="btn ghost sm" data-copy="obsUrl">${T('Copier', 'Copy', 'Copiar')}</button></div>`
+        : `<div class="lab"><div>${T('Disponible avec l\'appli Windows', 'Available with the Windows app', 'Disponible con la app de Windows')}</div><div>${T('OBS ne voit pas les données du navigateur. L\'appli Coffres.exe sert une page transparente pour OBS.', "OBS can't see the browser's data. The Coffres.exe app serves a transparent page for OBS.", 'OBS no ve los datos del navegador. La app Coffres.exe sirve una página transparente para OBS.')}</div></div><a class="btn sm" style="margin-top:12px" href="Coffres.exe" download>${T('Télécharger Coffres.exe', 'Download Coffres.exe', 'Descargar Coffres.exe')}</a>`}
+      </div></div></div>
+    </div>`;
+}
+
+function settingsPage(s) {
+  const ps = profiles();
+  const seg = (key, opts) => `<div class="seg">${opts.map(([v, l]) => `<button data-set="${key}" data-val="${v}" class="${String(prefs[key]) === String(v) ? 'on' : ''}">${l}</button>`).join('')}</div>`;
+  const folder = mode === 'exe'
+    ? `<div class="set" style="display:block"><div class="lab"><div>${T('Dossier des replays', 'Replays folder', 'Carpeta de repeticiones')}</div><div>${T('Ne le change que si tu l\'as déplacé.', 'Only change it if you moved it.', 'Cámbiala solo si la moviste.')}</div></div>
+        <div class="row2" style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap"><input class="field" id="folderInput" style="flex:1;min-width:220px" value="${esc(exeState?.folder || '')}"><button class="btn sm" data-act="saveFolder">${T('Enregistrer', 'Save', 'Guardar')}</button><button class="btn ghost sm" data-act="defaultFolder">${T('Par défaut', 'Default', 'Por defecto')}</button><button class="btn ghost sm" data-act="openFolder">${T('Ouvrir', 'Open', 'Abrir')}</button></div></div>
+       <div class="set"><div class="lab"><div>${T('Lancer avec Windows', 'Start with Windows', 'Iniciar con Windows')}</div><div>${T("Compte en arrière-plan, même fenêtre fermée : aucune partie n'est oubliée. Il dort entre les parties.", 'Counts in the background, even with the window closed: no match is missed. It sleeps between matches.', 'Cuenta en segundo plano, incluso con la ventana cerrada. Duerme entre partidas.')}</div></div><span class="switch"><input type="checkbox" data-act="autostart" ${exeState?.autostart ? 'checked' : ''}><i></i></span></div>`
+    : `<div class="set"><div class="lab"><div>${T('Dossier des replays', 'Replays folder', 'Carpeta de repeticiones')}</div><div>${dir ? esc(dir.name) : T('aucun', 'none', 'ninguna')}</div></div><button class="btn ghost sm" data-act="pick">${T('Changer', 'Change', 'Cambiar')}</button></div>`;
+  return `<div class="head"><h1>${T('Réglages', 'Settings', 'Ajustes')}</h1></div>
+    <div class="settings">
+      <div class="group"><h3>${T('Général', 'General', 'General')}</h3><div class="list">
+        <div class="set"><div class="lab"><div>${T('Langue', 'Language', 'Idioma')}</div></div>${seg('lang', [['fr', 'Français'], ['en', 'English'], ['es', 'Español']])}</div>
+        <div class="set"><div class="lab"><div>${T('Heures affichées en', 'Times shown in', 'Horas en')}</div><div>${T('Pour les semaines, les heures du trésor et les parties.', 'For weeks, Treasure Hours and matches.', 'Para semanas, horas del tesoro y partidas.')}</div></div>${seg('utc', [[false, T('Heure locale', 'Local time', 'Hora local')], [true, 'UTC']])}</div>
+        <div class="set"><div class="lab"><div>${T('Horloge', 'Clock', 'Reloj')}</div></div>${seg('clock', [['auto', T('Système', 'System', 'Sistema')], ['12', '12 h'], ['24', '24 h']])}</div>
+        ${ps.length > 1 ? `<div class="set"><div class="lab"><div>${T('Compte', 'Account', 'Cuenta')}</div><div>${T('Plusieurs comptes Fortnite ont joué sur ce PC : chacun a ses statistiques.', 'Several Fortnite accounts played on this PC: each has its own stats.', 'Varias cuentas jugaron en este PC: cada una tiene sus estadísticas.')}</div></div><select class="field" data-act="profile">${ps.map((p) => `<option value="${esc(p.key)}" ${p.key === s.pk ? 'selected' : ''}>${esc(p.name)} (${p.n})</option>`).join('')}</select></div>` : ps.length ? `<div class="set"><div class="lab"><div>${T('Compte', 'Account', 'Cuenta')}</div></div><span class="note">${esc(ps[0].name)}</span></div>` : ''}
+      </div></div>
+      <div class="group"><h3>${T('Comptage', 'Counting', 'Conteo')}</h3><div class="list">
+        ${folder}
+        <div class="set"><div class="lab"><div>${T('Coffres ouverts avant', 'Chests opened before', 'Cofres abiertos antes')}</div><div>${s.manualSum ? `${s.manualSum > 0 ? '+' : ''}${N(s.manualSum)} ${T('coffres ajoutés à la main', 'chests added by hand', 'cofres añadidos a mano')}` : T('Ajoute les coffres ouverts avant d\'utiliser Coffres.', 'Add the chests opened before using Coffres.', 'Añade los cofres abiertos antes de usar Coffres.')}</div></div><button class="btn ghost sm" data-act="manual">${T('Modifier', 'Edit', 'Editar')}</button></div>
+        ${mode === 'exe' ? `<div class="set"><div class="lab"><div>${T('Compter pendant la partie', 'Count during the match', 'Contar durante la partida')}</div><div>${T("Relit le replay en cours toutes les 30 s quand Fortnite le permet (souvent la clé n'arrive qu'à la fin).", 'Re-reads the replay in progress every 30 s when Fortnite allows it (often the key only arrives at the end).', 'Relee la repetición en curso cada 30 s cuando Fortnite lo permite.')}</div></div><span class="switch"><input type="checkbox" data-pref="live" ${prefs.live ? 'checked' : ''}><i></i></span></div>` : ''}
+        <div class="set"><div class="lab"><div>${T('Réanalyser tous les replays', 'Re-analyze every replay', 'Volver a analizar todo')}</div><div>${T('Utile après une mise à jour.', 'Useful after an update.', 'Útil tras una actualización.')}</div></div><button class="btn ghost sm" data-act="reanalyze">${T('Réanalyser', 'Re-analyze', 'Reanalizar')}</button></div>
+      </div></div>
+      <div class="group"><h3>${T('Notifications', 'Notifications', 'Notificaciones')}</h3><div class="list">
+        <div class="set"><div class="lab"><div>${T('Fin de partie', 'End of match', 'Fin de partida')}</div><div>${T('« +23 coffres », et les trésors obtenus.', '"+23 chests", and the treasures you got.', '«+23 cofres» y los tesoros obtenidos.')}</div></div><span class="switch"><input type="checkbox" data-pref="notifyMatches" ${prefs.notifyMatches && (mode === 'exe' || window.Notification?.permission === 'granted') ? 'checked' : ''}><i></i></span></div>
+        ${mode === 'exe' ? `<div class="set"><div class="lab"><div>${T('Heures du trésor', 'Treasure Hours', 'Horas del tesoro')}</div><div>${T('Un rappel 10 minutes avant.', 'A reminder 10 minutes before.', 'Un aviso 10 minutos antes.')}</div></div><span class="switch"><input type="checkbox" data-pref="notifyHours" ${prefs.notifyHours ? 'checked' : ''}><i></i></span></div>` : ''}
+      </div></div>
+      ${mode === 'exe' ? `<div class="group"><h3>${T('Mises à jour', 'Updates', 'Actualizaciones')}</h3><div class="list">
+        <div class="set"><div class="lab"><div>${T('Nouvelles versions', 'New versions', 'Nuevas versiones')}</div><div>${T('Automatique : installées entre deux parties, jamais pendant que Fortnite tourne.', 'Automatic: installed between matches, never while Fortnite runs.', 'Automático: entre partidas, nunca con Fortnite abierto.')} · version ${esc(exeState?.version || '')}</div></div>${seg('update', [['prompt', T('Proposées', 'Offered', 'Ofrecidas')], ['auto', 'Auto'], ['off', T('Non', 'Off', 'No')]])}</div>
+        <div class="set"><div class="lab"><div>${exeState?.update ? T('Version disponible : ', 'Available: ', 'Disponible: ') + esc(exeState.update.version) : T('Tu es à jour.', "You're up to date.", 'Estás al día.')}</div></div>${exeState?.update ? `<button class="btn sm" data-act="install" ${exeState.updating ? 'disabled' : ''}>${T('Installer', 'Install', 'Instalar')}</button>` : `<button class="btn ghost sm" data-act="checkUpdate">${T('Vérifier', 'Check', 'Comprobar')}</button>`}</div>
+      </div></div>` : ''}
+      <div class="group"><h3>${T('Données', 'Data', 'Datos')}</h3><div class="list">
+        <div class="set"><div class="lab"><div>${T('Sauvegarde', 'Backup', 'Copia de seguridad')}</div><div>${T('Tes réglages, coffres ajoutés et collection, dans un fichier.', 'Your settings, added chests and collection, in a file.', 'Tus ajustes, cofres añadidos y colección, en un archivo.')}</div></div><div style="display:flex;gap:8px"><button class="btn ghost sm" data-act="export">${T('Exporter', 'Export', 'Exportar')}</button><label class="btn ghost sm">${T('Importer', 'Import', 'Importar')}<input type="file" accept=".json" data-act="import" hidden></label></div></div>
+        <div class="set"><div class="lab"><div>${T('Tout effacer', 'Erase everything', 'Borrar todo')}</div><div>${T('Historique, réglages et collection de cet appareil.', 'History, settings and collection on this device.', 'Historial, ajustes y colección de este equipo.')}</div></div><button class="btn red sm" data-act="wipe" ${mode === 'exe' ? 'disabled' : ''}>${T('Effacer', 'Erase', 'Borrar')}</button></div>
+      </div></div>
+    </div>`;
+}
+
+function helpPage() {
+  const c = (title, body) => `<div class="card"><h3>${title}</h3>${body}</div>`;
+  return `<div class="head"><h1>${T('Aide', 'Help', 'Ayuda')}</h1></div><div class="prose">
+    ${c(T('Comment ça marche', 'How it works', 'Cómo funciona'), `<p>${T("Fortnite enregistre un replay de chaque partie. Coffres le lit une fois la partie finie et compte les coffres que <b>tu</b> as ouverts ou détruits, et les trésors de la chasse que tu en as tirés. Ça ne montre pas où sont les coffres sur la carte.", 'Fortnite records a replay of each match. Coffres reads it once the match is over and counts the chests <b>you</b> opened or destroyed, and the hunt treasures you got from them. It does not show where chests are on the map.', 'Fortnite graba una repetición de cada partida. Coffres la lee al terminar y cuenta los cofres que <b>tú</b> abriste o destruiste, y los tesoros que te dieron.')}</p>
+      <p>${T("Fortnite n'écrit la clé du replay qu'à la fin : les coffres sont comptés <b>quelques secondes après chaque partie</b>. Pendant la partie, un point rouge s'affiche.", 'Fortnite only writes the replay key at the end: chests are counted <b>a few seconds after each match</b>. During the match, a red dot shows.', 'Fortnite solo escribe la clave al final: los cofres se cuentan <b>segundos después de cada partida</b>. Durante la partida se ve un punto rojo.')}</p>`)}
+    ${c(T('Sans risque', 'Safe', 'Seguro'), `<ul>
+      <li>${T('Lit seulement les fichiers .replay, sans jamais les modifier.', 'Only reads .replay files, never changes them.', 'Solo lee archivos .replay, sin modificarlos.')}</li>
+      <li>${T('Ne touche ni au jeu ni à sa mémoire : aucun risque pour ton compte.', "Doesn't touch the game or its memory: no risk for your account.", 'No toca el juego ni su memoria: sin riesgo para tu cuenta.')}</li>
+      <li>${T('Aucune connexion, aucun envoi. Seules les données de la chasse (cotes, semaines) sont lues sur GitHub.', 'No login, nothing sent. Only the hunt data (odds, weeks) is read from GitHub.', 'Sin inicio de sesión ni envíos. Solo se leen de GitHub los datos de la búsqueda.')}</li></ul>`)}
+    ${c(T('Ce qui compte', 'What counts', 'Qué cuenta'), `<p>${T('Battle Royale classique (construction ou zéro construction, solo à section) sur la carte de la saison. Pas compté : classé, OG, Reload, Blitz, modes temporaires, Créatif, parties personnalisées.', 'Regular Battle Royale (build or zero build, solo to squads) on the season map. Not counted: ranked, OG, Reload, Blitz, limited-time modes, Creative, custom matches.', 'Battle Royale normal (con o sin construcción) en el mapa de la temporada. No cuenta: clasificatoria, OG, Reload, Blitz, modos temporales, Creativo, partidas personalizadas.')}</p>
+      <p>${T("Fortnite garde un nombre limité de replays non sauvegardés et efface les plus vieux : une partie dont le replay a disparu avant d'être lu n'est pas comptée.", 'Fortnite keeps a limited number of unsaved replays and deletes the oldest: a match whose replay vanished before being read is not counted.', 'Fortnite guarda un número limitado de repeticiones y borra las más viejas: una partida cuya repetición desapareció antes de leerse no cuenta.')}</p>`)}
+    ${c(T('Les trésors', 'Treasures', 'Tesoros'), `<ul>
+      <li><b>★★</b> ${T('Coffre doré : le serveur envoie l\'identifiant du prix, il est sûr et nommé.', 'Golden chest: the server sends the prize id, it is certain and named.', 'Cofre dorado: el servidor envía el id del premio, es seguro.')}</li>
+      <li><b>★</b> ${T('Chaque trésor reçu, au moment exact, s\'il vient de ton coffre. Sinon « Trésor (type inconnu) ».', 'Every treasure received, at the exact moment, if it came from your chest. Otherwise "Treasure (unknown type)".', 'Cada tesoro recibido, en el momento exacto, si vino de tu cofre.')}</li>
+      <li><b>⚑</b> ${T('Venu d\'autre chose qu\'un coffre : sûrement une erreur de lecture.', 'Came from something other than a chest: most likely a reading error.', 'Vino de algo que no es un cofre: seguramente un error.')}</li></ul>`)}
+    ${mode === 'exe' ? c(T('Appli Windows', 'Windows app', 'App de Windows'), `<p>${T('Fermer la fenêtre ne coupe pas le comptage. Tes données sont dans', 'Closing the window does not stop counting. Your data is in', 'Cerrar la ventana no detiene el conteo. Tus datos están en')} <code>${esc(exeState?.dataDir || '')}</code>.</p><p>${T("L'icône près de l'horloge (parfois derrière la petite flèche ^) ouvre la fenêtre et règle l'overlay. Les erreurs d'analyse sont notées dans errors.log, dans le dossier de données.", 'The icon next to the clock (sometimes behind the small ^ arrow) opens the window and controls the overlay. Analysis errors are written to errors.log, in the data folder.', 'El icono junto al reloj abre la ventana y controla el overlay. Los errores se guardan en errors.log, en la carpeta de datos.')}</p>
+      <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap"><button class="btn ghost sm" data-act="openData">${T('Dossier de données', 'Data folder', 'Carpeta de datos')}</button><button class="btn ghost sm" data-act="openFolder">${T('Dossier des replays', 'Replays folder', 'Carpeta de repeticiones')}</button><button class="btn ghost sm" data-act="quit">${T('Quitter Coffres', 'Quit Coffres', 'Salir de Coffres')}</button><button class="btn red sm" data-act="uninstall">${T('Désinstaller', 'Uninstall', 'Desinstalar')}</button></div>`)
+      : c(T('Appli Windows', 'Windows app', 'App de Windows'), `<p>${T("Coffres.exe fait la même chose sans l'étape du dossier, compte en arrière-plan même onglet fermé, et sert l'overlay pour OBS. Un seul fichier, pas d'installation. Windows peut afficher « Windows a protégé votre ordinateur » : Informations complémentaires → Exécuter quand même.", 'Coffres.exe does the same without the folder step, counts in the background even with the tab closed, and serves the OBS overlay. One file, no install. Windows may show "Windows protected your PC": More info → Run anyway.', 'Coffres.exe hace lo mismo sin el paso de la carpeta, cuenta en segundo plano y sirve el overlay para OBS. Un solo archivo, sin instalación.')}</p><a class="btn sm" style="margin-top:12px" href="Coffres.exe" download>${T('Télécharger Coffres.exe', 'Download Coffres.exe', 'Descargar Coffres.exe')}</a>`)}
+  </div>`;
+}
+
+// ---------------- manual chests dialog ----------------
+function manualDialog() {
+  const s = stats(), wk = s.week;
+  const est = s.mine.find((e) => e.kind === 'estimate');
+  $('dlgBody').innerHTML = `<h2>${T('Coffres ouverts avant', 'Chests opened before', 'Cofres abiertos antes')}</h2>
+    <p class="note">${T('Chaque nombre s\'ajoute au total (un nombre négatif en retire).', 'Each number is added to the total (a negative number removes some).', 'Cada número se suma al total (uno negativo resta).')}</p>
+    <div class="row2"><input class="field" id="mNum" type="number" step="1" placeholder="${T('ex. 250', 'e.g. 250', 'p. ej. 250')}" inputmode="numeric"><button class="btn" id="mAdd">${T('Ajouter', 'Add', 'Añadir')}</button></div>
+    ${wk ? `<label class="ck"><input type="checkbox" id="mWeek"> ${T('Ouverts cette semaine (comptent aussi dans les chances de la semaine)', 'Opened this week (also count in this week\'s chances)', 'Abiertos esta semana (cuentan en las probabilidades de la semana)')}</label>` : ''}
+    <hr>
+    <h3>${T('Tu ne sais pas combien ?', "Don't know how many?", '¿No sabes cuántos?')}</h3>
+    <p class="note" style="margin-top:4px">${T('Entre le nombre de parties affiché dans Fortnite (Carrière → Stats) : les parties non vues sont multipliées par ta moyenne. Une nouvelle estimation remplace la précédente.', 'Enter the number of matches shown in Fortnite (Career → Stats): unseen matches are multiplied by your average. A new estimate replaces the previous one.', 'Introduce las partidas que muestra Fortnite (Carrera → Estadísticas): las no vistas se multiplican por tu media.')}</p>
+    <div class="row2"><input class="field" id="mCareer" type="number" min="0" step="1" placeholder="${T('parties', 'matches', 'partidas')}" value="${est?.career ?? ''}"><button class="btn ghost" id="mEst" ${s.counted.length ? '' : 'disabled'}>${T('Estimer', 'Estimate', 'Estimar')}</button></div>
+    <div class="entries">${s.mine.map((e) => `<div class="row"><div><div class="t">${e.chests > 0 ? '+' : ''}${N(e.chests)} ${T('coffres', 'chests', 'cofres')}</div><div class="d">${e.kind === 'estimate' ? `${T('estimation', 'estimate', 'estimación')} · ${N(e.career)} ${T('parties', 'matches', 'partidas')} · ` : ''}${e.week ? T('cette semaine · ', 'this week · ', 'esta semana · ') : ''}${when(e.at)}</div></div><button class="icon-btn" data-del="${e.id}" aria-label="${T('Retirer', 'Remove', 'Quitar')}">✕</button></div>`).join('') || `<div class="empty" style="padding:14px">${T('Rien ajouté.', 'Nothing added.', 'Nada añadido.')}</div>`}</div>
+    <div class="foot"><button class="btn ghost" id="mClose">${T('OK', 'Done', 'Listo')}</button></div>`;
+  const saveManual = () => { store.set('manual', manual); manualDialog(); render(); };
+  $('mAdd').onclick = () => { const n = parseInt($('mNum').value, 10); if (!n) return; manual.push({ id: crypto.randomUUID(), chests: n, at: Date.now(), kind: 'hand', profile: s.pk, week: $('mWeek')?.checked ? wk.start : null }); saveManual(); };
+  $('mEst').onclick = () => {
+    const career = parseInt($('mCareer').value, 10); if (!(career >= 0)) return;
+    const avg = s.counted.reduce((a, m) => a + m.chests, 0) / s.counted.length;
+    manual = manual.filter((e) => !(e.kind === 'estimate' && (e.profile ?? s.pk) === s.pk));
+    const n = Math.round(Math.max(0, career - s.counted.length) * avg);
+    if (n) manual.push({ id: crypto.randomUUID(), chests: n, at: Date.now(), kind: 'estimate', career, profile: s.pk, week: null });
+    saveManual();
+  };
+  $('dlgBody').querySelectorAll('[data-del]').forEach((b) => b.onclick = () => { manual = manual.filter((e) => e.id !== b.dataset.del); saveManual(); });
+  $('mClose').onclick = () => $('dlg').close();
+  if (!$('dlg').open) $('dlg').showModal();
+}
+
+// ---------------- events ----------------
+function bind() {
+  const root = $('main');
+  root.querySelectorAll('[data-copy]').forEach((b) => b.onclick = async () => { await navigator.clipboard.writeText($(b.dataset.copy).textContent); const t = b.textContent; b.textContent = T('Copié', 'Copied', 'Copiado'); setTimeout(() => b.textContent = t, 1400); });
+  root.querySelectorAll('[data-pref]').forEach((i) => i.onchange = async () => {
+    if (i.dataset.pref === 'notifyMatches' && i.checked && mode === 'web' && window.Notification && Notification.permission !== 'granted' && await Notification.requestPermission() !== 'granted') { i.checked = false; return; }
+    prefs[i.dataset.pref] = i.checked; savePrefs(); lastSig = ''; render();
+  });
+  root.querySelectorAll('[data-set]').forEach((b) => b.onclick = () => { const v = b.dataset.val; prefs[b.dataset.set] = v === 'true' ? true : v === 'false' ? false : v; savePrefs(); lastSig = ''; render(); });
+  root.querySelectorAll('[data-ov]').forEach((b) => b.onclick = () => { prefs.overlay[b.dataset.ov] = b.dataset.val; savePrefs(); render(); });
+  root.querySelectorAll('[data-ovr]').forEach((i) => i.oninput = () => { prefs.overlay[i.dataset.ovr] = Number(i.value); savePrefs(); renderOverlays(stats()); const u = $('obsUrl'); if (u) u.textContent = obsUrl(); });
+  root.querySelectorAll('[data-ovc]').forEach((i) => i.onchange = () => { prefs.overlay[i.dataset.ovc] = i.checked; savePrefs(); if (mode === 'exe') setTimeout(poll, 800); render(); });
+  root.querySelectorAll('[data-more]').forEach((b) => b.onclick = () => { limits[b.dataset.more] += 20; render(); });
+  root.querySelectorAll('[data-match]').forEach((r) => r.onclick = () => { const f = r.dataset.match; expanded.has(f) ? expanded.delete(f) : expanded.add(f); render(); });
+  root.querySelectorAll('[data-prize]').forEach((b) => b.onclick = () => { const id = b.dataset.prize, s = stats(), p = allPrizes().find((x) => x.id === id); collection[id] = !owned(p, s); if (collection[id] === s.got.has(id)) delete collection[id]; store.set('collection', collection); render(); });
+  root.querySelectorAll('[data-dismiss]').forEach((b) => b.onclick = () => { dismissed.push(b.dataset.dismiss); store.set('dismissed', dismissed); render(); });
+  root.querySelectorAll('[data-act]').forEach((el) => {
+    const act = el.dataset.act;
+    const run = async () => {
+      try {
+        if (act === 'pick') await pickFolder();
+        if (act === 'manual') manualDialog();
+        if (act === 'pip') await openPip();
+        if (act === 'profile') { prefs.profile = el.value; savePrefs(); lastSig = ''; render(); }
+        if (act === 'saveFolder') { await api('/api/folder', { path: $('folderInput').value }); await poll(); render(); }
+        if (act === 'defaultFolder') { await api('/api/folder', { path: exeState.defaultFolder }); await poll(); render(); }
+        if (act === 'openFolder') await api('/api/open');
+        if (act === 'autostart') { await api('/api/autostart', { on: el.checked }); await poll(); }
+        if (act === 'quit') { await api('/api/quit').catch(() => {}); document.body.innerHTML = `<div class="setup"><h1>${T('À bientôt.', 'See you.', 'Hasta pronto.')}</h1></div>`; }
+        if (act === 'reanalyze') { if (mode === 'exe') { await api('/api/reanalyze'); await poll(); } else { for (const m of Object.values(matches)) m.v = 0; await kv('matches', matches); scan(); } }
+        if (act === 'welcomed') { prefs.welcomed = true; prefs.seenVersion = exeState?.version; savePrefs(); render(); }
+        if (act === 'seen') { prefs.seenVersion = exeState?.version; savePrefs(); render(); }
+        if (act === 'install') { await api('/api/update', { action: 'install' }); await poll(); }
+        if (act === 'checkUpdate') { await api('/api/update', { action: 'check' }); lastSig = ''; await poll(); }
+        if (act === 'ovToggle') { await api('/api/overlay', { action: 'toggle' }); setTimeout(poll, 300); }
+        if (act === 'ovLock') { await api('/api/overlay', { action: 'lock' }); setTimeout(poll, 300); }
+        if (act === 'openData') await api('/api/open', { what: 'data' });
+        if (act === 'uninstall' && confirm(T("Désinstaller Coffres ? Le lancement avec Windows est retiré, tes données de Coffres et l'exe sont supprimés. Tes replays ne sont pas touchés.", 'Uninstall Coffres? Start with Windows is removed, your Coffres data and the exe are deleted. Your replays are not touched.', '¿Desinstalar Coffres? Se quita el inicio con Windows y se borran tus datos de Coffres y el exe. Tus repeticiones no se tocan.'))) { await api('/api/uninstall').catch(() => {}); document.body.innerHTML = `<div class="setup"><h1>${T('Coffres est désinstallé.', 'Coffres is uninstalled.', 'Coffres está desinstalado.')}</h1></div>`; }
+        if (act === 'export') {
+          const blob = new Blob([JSON.stringify({ app: 'coffres', prefs, manual, collection, matches: mode === 'web' ? matches : undefined }, null, 1)], { type: 'application/json' });
+          const a = Object.assign(document.createElement('a'), { href: URL.createObjectURL(blob), download: `coffres-${dayKey(Date.now())}.json` }); a.click();
+        }
+        if (act === 'import') {
+          const d = JSON.parse(await el.files[0].text()); if (d.app !== 'coffres') throw new Error('format');
+          Object.assign(prefs, d.prefs); manual = d.manual || []; collection = d.collection || {};
+          savePrefs(); store.set('manual', manual); store.set('collection', collection);
+          if (mode === 'web' && d.matches) { matches = { ...d.matches, ...matches }; await kv('matches', matches); }
+          lastSig = ''; render();
+        }
+        if (act === 'wipe' && confirm(T('Tout effacer ? Les replays ne sont pas touchés, ils seront relus.', 'Erase everything? Replays are not touched, they will be read again.', '¿Borrar todo? Las repeticiones no se tocan, se volverán a leer.'))) {
+          localStorage.clear(); const db = await idb; db.close(); indexedDB.deleteDatabase('coffres'); location.reload();
+        }
+      } catch (e) { alert(e.message); }
+    };
+    if (el.tagName === 'INPUT' || el.tagName === 'SELECT') el.onchange = run; else el.onclick = run;
+  });
+  const rw = $('resumeWrap');
+  if (rw && savedDir) {
+    rw.innerHTML = `<p style="margin-top:14px"><button class="btn ghost" id="resumeBtn">${T('Reprendre avec', 'Resume with', 'Seguir con')} « ${esc(savedDir.name)} »</button></p>`;
+    $('resumeBtn').onclick = async () => { if (await savedDir.requestPermission({ mode: 'read' }) === 'granted') { dir = savedDir; go('accueil'); scan(); } };
+  }
+}
+
+// ---------------- boot ----------------
+const params = new URLSearchParams(location.search);
+const obsOpts = { style: params.get('style') || 'hud', size: Number(params.get('size') || 1), opacity: Number(params.get('opacity') || 1), squad: params.get('squad') === '1' };
+if (params.get('lang')) prefs.lang = params.get('lang');
+if (params.get('obs')) document.body.classList.add('obs');
+page = PAGES.some(([k]) => k === location.hash.slice(1)) ? location.hash.slice(1) : 'accueil';
+let savedDir = null, loadedVersion = null;
+
+fetch(CONTENT_URL, { cache: 'no-cache' }).then((r) => r.json()).then((c) => { content = c; lastSig = ''; update(); }).catch(() => {});
+
+const probe = await fetch('/api/state', { cache: 'no-store' }).then((r) => r.ok ? r.json() : null).catch(() => null);
+if (probe?.mode === 'exe') {
+  mode = 'exe'; exeState = probe; matches = probe.matches; live = probe.live; qDone = probe.done; qTotal = probe.total; loadedVersion = probe.version;
+  const u = probe.user || {};
+  if (u.prefs) { Object.assign(prefs, u.prefs); prefs.overlay = { style: 'hud', size: 1, opacity: 1, squad: false, native: true, onlyGame: true, ...u.prefs.overlay }; manual = u.manual || []; collection = u.collection || {}; dismissed = u.dismissed || []; }
+  else pushUser();
+  setInterval(poll, params.get('obs') ? 5000 : 3000);
+} else {
+  matches = (await kv('matches')) || {};
+  savedDir = await kv('dir');
+  if (savedDir && await savedDir.queryPermission({ mode: 'read' }) === 'granted') dir = savedDir;
+  setInterval(scan, 5000);
+  document.addEventListener('visibilitychange', () => document.visibilityState === 'visible' && scan());
+  scan();
+}
+render();
+update();
+setInterval(() => { lastSig = ''; update(); }, 60000);
+</script>
+</body>
+</html>
